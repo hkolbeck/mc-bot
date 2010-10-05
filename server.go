@@ -6,31 +6,28 @@ import (
 	"exec"
 	"time"
 	"syscall"
-	)
+	"fmt"
+	"io"
+)
 
 type Server struct {
 	*exec.Cmd
 	mutex *sync.Mutex
 	running bool
 	dir string
-	started *time.Time
-}
-
-type ServerStats struct {
-	uptime 
 }
 
 const STOP_TIMEOUT = 5e9
 
 func StartServer(dir string) (*Server, os.Error) {
-	proc, err := exec.Run("java", []string{"-Xms1024M", "-Xmx1024M", "-jar mcs.jar"},
+	proc, err := exec.Run("/usr/bin/java", []string{"-Xms1024M", "-Xmx1024M", "-jar", "mcs.jar"},
 		nil, dir, exec.Pipe, exec.Pipe, exec.MergeWithStdout)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Server{proc, &sync.Mutex{}, true, dir, time.GetLocalTime()}, nil
+	return &Server{proc, &sync.Mutex{}, true, dir}, nil
 }
 
 func (s *Server) Stop(delay int64, msg string) {
@@ -40,8 +37,8 @@ func (s *Server) Stop(delay int64, msg string) {
 
 	s.mutex.Lock()
 	s.running = false
-	if delay > 0 {
-		s.Stdin.WriteString(msg)
+	if delay < 0 {
+		s.Stdin.WriteString("say " + msg)
 		time.Sleep(60e9)
 	}
 
@@ -74,13 +71,15 @@ func (s *Server) BackupState(filename string) (err os.Error) {
 	s.Stdin.WriteString("say Backup in progress...\n")
 	s.Stdin.WriteString("save-off\n")
 
-	bu, err := exec.Run("tar", 
-		[]string{"-czf mc_server_backups/" + filename, "banned-ips.txt", "server.log", 
-		"server.properties", "banned-players.txt",  "ops.txt",  "server.log.lck",  "world"},
-		nil, s.dir, exec.DevNull, exec.DevNull, exec.DevNull)
+	time.Sleep(5e9) //Let save-off go through
+
+	bu, err := exec.Run("/u/cbeck/GoBot/irc/mcbot/backup.sh", 
+		[]string{" ", filename},
+		nil, s.dir, exec.DevNull, exec.Pipe, exec.MergeWithStdout)
 
 	if bu != nil {
-		wm, err := bu.Wait(os.WSTOPPED)
+		go io.Copy(os.Stdout, bu.Stdout)
+		wm, _ := bu.Wait(os.WSTOPPED)
 		if ex := wm.ExitStatus(); ex != 0 {
 			err = os.NewError(fmt.Sprintf("Backup command returned errorcode: %d", ex))
 		}
