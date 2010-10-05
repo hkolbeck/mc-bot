@@ -16,6 +16,10 @@ import (
 
 var bot *ircbot.Bot
 var server *mcserver.Server
+var trusted map[string]bool = map[string]bool{"cbeck":true}
+var ignored map[string]bool = map[string]bool{}
+
+const admin = "cbeck"
 const mcDir = "/disk/trump/cbeck"
 
 func main() {
@@ -43,7 +47,7 @@ func session() {
 		panic(e.String())
 	}
 	
-	go autoBackup(server, 3600e9, 24)
+	go autoBackup(server)
 	go io.Copy(os.Stdout, server.Stdout)
 	go io.Copy(server.Stdin, os.Stdin)
 	
@@ -54,7 +58,17 @@ func session() {
 	select {}
 }
 
+var sanitizeRegex *regexp.Regexp = regexp.MustCompile(`[^0-9a-zA-z_ ]`)
+
 func parseCommand(c string, m *ircbot.Message) string {
+	sender := m.GetSender()
+	
+	if ignored[sender] && sender != admin {
+		return ""
+	}
+
+	c = sanitizeRegex.ReplaceAllString(c, "_")
+		
 	var args []string
 	split := strings.Split(strings.TrimSpace(c), " ", 2)
 	command := strings.ToLower(split[0])
@@ -66,7 +80,7 @@ func parseCommand(c string, m *ircbot.Message) string {
 	case "give":
 		return give(args)
 	case "restart":
-		return restart(m)
+		return restart(m.GetSender())
 	case "backup":
 		return backup(args)
 	case "state":
@@ -74,12 +88,19 @@ func parseCommand(c string, m *ircbot.Message) string {
 	case "say":
 		return say(args)
 	case "stop":
-		return stop(m)
+		return stop(m.GetSender())
 	case "halt" :
+		if !trusted[sender] {
+			return ""
+		}	
 		server.Stop(1e9,"Server going down NOW!")
 		return "Server halted"
 	case "tp" :
 		return tp(args)
+	case "ignore" : 
+		return ignore(args, m.GetSender())
+	case "trust" :
+		return trust(args, m.GetSender())
 	case "help" :
 		return "give | restart | backup | state | say | stop | tp | help"
 	}
@@ -88,12 +109,16 @@ func parseCommand(c string, m *ircbot.Message) string {
 }
 
 
-func stop(m *ircbot.Message) string {
+func stop(sender string) string {
+	if !trusted[sender] {
+		return ""
+	}
+
 	if !server.IsRunning() {
 		return "The server is not currently running"
 	}
 
-	server.Stop(10e9, fmt.Sprintf("Server halt requested by %s, going down in 10s\n", m.GetSender()))
+	server.Stop(10e9, fmt.Sprintf("Server halt requested by %s, going down in 10s\n", sender))
 	server = nil
 	return "Server halted."
 }
@@ -114,17 +139,21 @@ func give(args []string) string {
 	return ""
 }
 
-func restart(m *ircbot.Message) string {
+func restart(sender string) string {
+	if !trusted[sender] {
+		return ""
+	}
+
 	var err os.Error
 
-	server.Stop(10e9, fmt.Sprintf("Server restart requested by %s, going down in 10s\n", m.GetSender()))
+	server.Stop(10e9, fmt.Sprintf("Server restart requested by %s, going down in 10s\n", sender))
 	server, err = mcserver.StartServer("/disk/trump/cbeck")
 
 	if err != nil {
 		return "Could not start server: " + err.String()
 	}
 
-	go autoBackup(server, 3600e9, 24)
+	go autoBackup(server)
 	go io.Copy(os.Stdout, server.Stdout)
 	go io.Copy(server.Stdin, os.Stdin)
 
@@ -218,12 +247,58 @@ func tp(args []string) string {
 	return ""
 }
 
-func autoBackup(s *mcserver.Server, interval int64, numbackups int) {
-	tick := time.Tick(interval)
-	for s.IsRunning() {
-		for i := 0; i < numbackups && s.IsRunning(); i++ {
-			s.BackupState(fmt.Sprintf("%d.tgz", i))
-			<-tick
+func ignore(args []string, sender string) string {
+	if !trusted[sender] {
+		return ""
+	}
+	
+	ign := "Ignoring: "
+	unign := "Unignoring: "
+	
+	for _, i := range args {
+		if (!trusted[i] || sender == admin) && i != admin {
+			if ignored[i] {
+				unign += i + " "
+				ignored[i] = false, false
+			} else {
+				ign += i + " "
+				ignored[i] = true
+			}
+		} 
+	}
+
+	return ign + unign
+}
+
+func trust(args []string, sender string) string {
+	if sender != admin {
+		return ""
+	}
+	
+	trst := "Trusting: "
+	untrst := "Untrusting: "
+	
+	for _, i := range args {
+		if i != admin {
+			if trusted[i] {
+				untrst += i + " "
+				trusted[i] = false, false
+			} else {
+				trst += i + " "
+				trusted[i] = true
+			}
 		}
 	}
+
+	return trst + untrst
 }
+
+func autoBackup(s *mcserver.Server) {
+	tick := time.Tick(3610e9)
+	for s.IsRunning() {
+		t := time.LocalTime()
+		s.BackupState(fmt.Sprintf("%d.tgz", t.Hour))
+		<-tick
+	}
+}
+

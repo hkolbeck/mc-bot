@@ -73,7 +73,7 @@ func (s *Server) BackupState(filename string) (err os.Error) {
 
 	time.Sleep(5e9) //Let save-off go through
 
-	bu, err := exec.Run("/u/cbeck/GoBot/irc/mcbot/backup.sh", 
+	bu, err := exec.Run("/u/cbeck/irc-go/mcbot/backup.sh", 
 		[]string{" ", filename},
 		nil, s.dir, exec.DevNull, exec.Pipe, exec.MergeWithStdout)
 
