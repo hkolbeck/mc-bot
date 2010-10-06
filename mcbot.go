@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./ircbot"
+	"cbeck/ircbot"
 	"./mcserver"
 	"time"
 	"strings"
