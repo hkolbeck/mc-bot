@@ -112,13 +112,16 @@ func parseCommand(c string, m *ircbot.Message) string {
 		listReq = true
 		server.Stdin.WriteString("\nlist\n")
 		return <-lastList
-	case "help" :
-		return "give | restart | list | backup | state | say | stop | tp | help"
 	case "ffa" :
 		if !trusted[sender] {
 			return ""
 		}
 		freeForAll = !freeForAll
+	case "help" :
+		return "give | restart | list | backup | state | say | stop | tp | source | help"
+
+	case "mc-bot", "source" : 
+		return "MC-Bot was written by Cory Kolbeck. Its source can be found at http://github.com/ckolbeck/mc-bot"
 	}
 
 	return "Huh?"
