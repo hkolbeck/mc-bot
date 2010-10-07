@@ -19,7 +19,8 @@ var bot *ircbot.Bot
 var server *mcserver.Server
 var trusted map[string]bool = map[string]bool{"cbeck":true}
 var ignored map[string]bool = map[string]bool{}
-var lastList string
+var lastList chan string = make(chan string, 1)
+var listReq bool
 
 //If false, only trusted people can issue -any- commands
 var freeForAll bool = true
@@ -108,11 +109,11 @@ func parseCommand(c string, m *ircbot.Message) string {
 	case "trust" :
 		return trust(args, sender)
 	case "list" :
+		listReq = true
 		server.Stdin.WriteString("\nlist\n")
-		time.Sleep(2e9)
-		return lastList
+		return <-lastList
 	case "help" :
-		return "give | restart | backup | state | say | stop | tp | help"
+		return "give | restart | list | backup | state | say | stop | tp | help"
 	case "ffa" :
 		if !trusted[sender] {
 			return ""
@@ -326,8 +327,9 @@ func monitorOutput(s *mcserver.Server) {
 	in := bufio.NewReader(s.Stdout)
 
 	for str, err := in.ReadString('\n'); s.IsRunning() && err == nil; str, err = in.ReadString('\n') {
-		if listRegex.MatchString(str) {
-			lastList = str[27:]
+		if listReq && listRegex.MatchString(str) {
+			lastList <- str[27:]
+			listReq = false
 		} else if msgRegex.MatchString(str) {
 			bot.Send(network, &ircbot.Message{
 			Command : "PRIVMSG",
