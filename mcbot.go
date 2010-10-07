@@ -18,7 +18,10 @@ var bot *ircbot.Bot
 var server *mcserver.Server
 var trusted map[string]bool = map[string]bool{"cbeck":true}
 var ignored map[string]bool = map[string]bool{}
-//var lastList string
+var lastList string
+
+//If false, only trusted people can issue -any- commands
+var freeForAll bool = true
 
 const admin = "cbeck"
 const mcDir = "/disk/trump/cbeck"
@@ -61,11 +64,10 @@ func session() {
 
 var sanitizeRegex *regexp.Regexp = regexp.MustCompile(`[^0-9a-zA-z_ ]`)
 
-
 func parseCommand(c string, m *ircbot.Message) string {
 	sender := m.GetSender()
 	
-	if ignored[sender] && sender != admin {
+	if (ignored[sender] && sender != admin) || (!freeForAll && !trusted[sender]) {
 		return ""
 	}
 
@@ -105,6 +107,11 @@ func parseCommand(c string, m *ircbot.Message) string {
 		return trust(args, sender)
 	case "help" :
 		return "give | restart | backup | state | say | stop | tp | help"
+	case "ffa" :
+		if !trusted[sender] {
+			return ""
+		}
+		freeForAll = !freeForAll
 	}
 
 	return "Huh?"
