@@ -18,6 +18,7 @@ var bot *ircbot.Bot
 var server *mcserver.Server
 var trusted map[string]bool = map[string]bool{"cbeck":true}
 var ignored map[string]bool = map[string]bool{}
+//var lastList string
 
 const admin = "cbeck"
 const mcDir = "/disk/trump/cbeck"
@@ -60,6 +61,7 @@ func session() {
 
 var sanitizeRegex *regexp.Regexp = regexp.MustCompile(`[^0-9a-zA-z_ ]`)
 
+
 func parseCommand(c string, m *ircbot.Message) string {
 	sender := m.GetSender()
 	
@@ -80,15 +82,15 @@ func parseCommand(c string, m *ircbot.Message) string {
 	case "give":
 		return give(args)
 	case "restart":
-		return restart(m.GetSender())
+		return restart(sender)
 	case "backup":
 		return backup(args)
 	case "state":
 		return state()
 	case "say":
-		return say(args)
+		return say(args, sender)
 	case "stop":
-		return stop(m.GetSender())
+		return stop(sender)
 	case "halt" :
 		if !trusted[sender] {
 			return ""
@@ -98,9 +100,9 @@ func parseCommand(c string, m *ircbot.Message) string {
 	case "tp" :
 		return tp(args)
 	case "ignore" : 
-		return ignore(args, m.GetSender())
+		return ignore(args, sender)
 	case "trust" :
-		return trust(args, m.GetSender())
+		return trust(args, sender)
 	case "help" :
 		return "give | restart | backup | state | say | stop | tp | help"
 	}
@@ -228,12 +230,12 @@ func getMemUsage() (int, os.Error) {
 	return usage, nil
 }
 
-func say(args []string) string {
+func say(args []string, sender string) string {
 	if args == nil {
 		return ""
 	}
 
-	fmt.Fprintf(server.Stdin, "say %s\n", strings.Join(args, " "))
+	fmt.Fprintf(server.Stdin, "say <%s> %s\n", sender, strings.Join(args, " "))
 	return ""
 }
 
