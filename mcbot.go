@@ -322,7 +322,7 @@ func autoBackup(s *mcserver.Server) {
 }
 
 var listRegex *regexp.Regexp = regexp.MustCompile(`Connected players:.*`)
-var msgRegex *regexp.Regexp = regexp.MustCompile(`[INFO] <[a-zA-Z0-9_]+>`)
+var msgRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] <[a-zA-Z0-9_]+>`)
 
 func monitorOutput(s *mcserver.Server) {
 	defer ircbot.RecoverWithTrace()
