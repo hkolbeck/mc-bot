@@ -37,10 +37,14 @@ func (s *Server) Stop(delay int64, msg string) {
 
 	s.mutex.Lock()
 	s.running = false
+	
+	s.Stdin.WriteString("say " + msg)
+	
 	if delay < 0 {
-		s.Stdin.WriteString("say " + msg)
-		time.Sleep(60e9)
-	}
+		time.Sleep(10e9)
+	} else {
+		time.Sleep(delay)
+	} 
 
 	s.Stdin.WriteString("stop\n")
 	

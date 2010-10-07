@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"regexp"
 	"strconv"
+	"bufio"
 )
 
 var bot *ircbot.Bot
@@ -23,6 +24,7 @@ var lastList string
 //If false, only trusted people can issue -any- commands
 var freeForAll bool = true
 
+const network = "irc.cat.pdx.edu"
 const admin = "cbeck"
 const mcDir = "/disk/trump/cbeck"
 
@@ -38,7 +40,7 @@ func session() {
 	bot = ircbot.NewBot("MC-Bot", '!')
 
 	bot.SetPrivmsgHandler(parseCommand, nil)
-	_, e := bot.Connect("irc.cat.pdx.edu", 6667, []string{"#minecraft"})
+	_, e := bot.Connect(network, 6667, []string{"#minecraft"})
 
 	if e != nil {
 		panic(e.String())
@@ -52,7 +54,7 @@ func session() {
 	}
 	
 	go autoBackup(server)
-	go io.Copy(os.Stdout, server.Stdout)
+	go monitorOutput(server)
 	go io.Copy(server.Stdin, os.Stdin)
 	
 	defer func(s *mcserver.Server) {
@@ -105,6 +107,10 @@ func parseCommand(c string, m *ircbot.Message) string {
 		return ignore(args, sender)
 	case "trust" :
 		return trust(args, sender)
+	case "list" :
+		server.Stdin.WriteString("\nlist\n")
+		time.Sleep(2e9)
+		return lastList
 	case "help" :
 		return "give | restart | backup | state | say | stop | tp | help"
 	case "ffa" :
@@ -163,7 +169,7 @@ func restart(sender string) string {
 	}
 
 	go autoBackup(server)
-	go io.Copy(os.Stdout, server.Stdout)
+	go monitorOutput(server)
 	go io.Copy(server.Stdin, os.Stdin)
 
 	return "Server restarted"
@@ -311,3 +317,25 @@ func autoBackup(s *mcserver.Server) {
 	}
 }
 
+var listRegex *regexp.Regexp = regexp.MustCompile(`Connected players:.*`)
+var msgRegex *regexp.Regexp = regexp.MustCompile(`[INFO] <[a-zA-Z0-9_]+>`)
+
+func monitorOutput(s *mcserver.Server) {
+	defer ircbot.RecoverWithTrace()
+
+	in := bufio.NewReader(s.Stdout)
+
+	for str, err := in.ReadString('\n'); s.IsRunning() && err == nil; str, err = in.ReadString('\n') {
+		if listRegex.MatchString(str) {
+			lastList = str[27:]
+		} else if msgRegex.MatchString(str) {
+			bot.Send(network, &ircbot.Message{
+			Command : "PRIVMSG",
+			Args : []string{"#minecraft"},
+			Trailing : str[27:],
+			})
+		}
+
+		log.Stdout(str)
+	}
+}
