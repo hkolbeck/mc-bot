@@ -232,7 +232,8 @@ func give(cmd string) string {
 			id, ok = items[strings.TrimSpace(strings.ToLower(match[2]))]
 			
 			if !ok {
-				return fmt.Sprintf("Unknown item: %s.  Did you mean %#v?" + match[2], notFound(match[2]))
+				return fmt.Sprintf("Unknown item: %s.  Did you mean %v?", 
+					match[2], strings.Join(notFound(match[2]), ", "))
 			}
 		}
 
@@ -254,7 +255,7 @@ func give(cmd string) string {
 }
 
 func notFound(query string) []string {
-	ans := make(vector.StringVector, 20, 0)
+	ans := make(vector.StringVector, 0, 20)
 	
 	for _, w := range strings.Split(query, " ", -1) {
 		for key := range items {
