@@ -102,49 +102,88 @@ func parseCommand(c string, m *ircbot.Message) string {
 	switch command {
 	case "give":
 		return give(c)
+	
 	case "parseitems" :
 		if e := parseItems(itemFile); e != nil {
 			return e.String()
 		}
 		return "Done, " + sender
+	
 	case "restart":
 		return restart(sender)
+	
 	case "backup":
 		return backup(args)
+	
 	case "state":
-		log.Stdoutf("[I]%#v\n", items)
 		return state()
+	
 	case "stop":
 		return stop(sender)
+	
 	case "halt" :
 		if !trusted[sender] {
 			return ""
 		}	
 		server.Stop(1e9,"Server going down NOW!")
 		return "Server halted"
+	
 	case "tp" :
 		return tp(args)
+	
 	case "ignore" : 
 		return ignore(args, sender)
+	
 	case "trust" :
 		return trust(args, sender)
+	
 	case "list" :
 		listReq = true
 		server.Stdin.WriteString("\nlist\n")
 		return <-lastList
+	
 	case "ffa" :
 		if !trusted[sender] {
 			return ""
 		}
 		freeForAll = !freeForAll
+
+	case "additem" :
+		return addItem(args, sender)
+
 	case "help" :
 		return "give | restart | list | backup | state | stop | tp | source | help"
 
 	case "mc-bot", "source" : 
 		return "MC-Bot was written by Cory Kolbeck. Its source can be found at http://github.com/ckolbeck/mc-bot"
 	}
-
 	return "Huh?"
+}
+
+func addItem(args []string, sender string) string {
+	if !trusted[sender] {
+		return ""
+	}
+
+	if len(args) < 2 {
+		return "Expected format `additem <name> <itemid>`"
+	}
+
+	id, err := strconv.Atoi(args[len(args) - 1])
+
+	if err != nil {
+		return "Couldn't parse `" + args[len(args) - 1] + "` as an int"
+	}
+
+	itemName := strings.ToLower(strings.Join(args[:len(args) - 1], " "))
+
+	if _, exists := items[itemName]; exists && sender != admin {
+		return "Item already exists."
+	}
+
+	items[itemName] = id
+
+	return "Okay, " + sender
 }
 
 
@@ -187,7 +226,6 @@ func give(cmd string) string {
 	}
 
 	if match := giveRegex.FindStringSubmatch(cmd); match != nil {
-		log.Stdoutf("[I] %#v\n", match)
 		id, err = strconv.Atoi(match[2])
 		
 		if err != nil {
