@@ -46,7 +46,7 @@ func session() {
 	defer ircbot.RecoverWithTrace()
 	bot = ircbot.NewBot("MC-Bot", '!')
 
-	bot.SetPrivmsgHandler(parseCommand, nil)
+	bot.SetPrivmsgHandler(parseCommand, echoChat)
 	_, e := bot.Connect(network, 6667, []string{"#minecraft"})
 
 	if e != nil {
@@ -71,7 +71,7 @@ func session() {
 	select {}
 }
 
-var sanitizeRegex *regexp.Regexp = regexp.MustCompile(`[^0-9a-zA-z_ ]`)
+var sanitizeRegex *regexp.Regexp = regexp.MustCompile(`[^ -~]`)
 
 func parseCommand(c string, m *ircbot.Message) string {
 	sender := m.GetSender()
@@ -98,8 +98,6 @@ func parseCommand(c string, m *ircbot.Message) string {
 		return backup(args)
 	case "state":
 		return state()
-	case "say":
-		return say(args, sender)
 	case "stop":
 		return stop(sender)
 	case "halt" :
@@ -124,7 +122,7 @@ func parseCommand(c string, m *ircbot.Message) string {
 		}
 		freeForAll = !freeForAll
 	case "help" :
-		return "give | restart | list | backup | state | say | stop | tp | source | help"
+		return "give | restart | list | backup | state | stop | tp | source | help"
 
 	case "mc-bot", "source" : 
 		return "MC-Bot was written by Cory Kolbeck. Its source can be found at http://github.com/ckolbeck/mc-bot"
@@ -133,6 +131,14 @@ func parseCommand(c string, m *ircbot.Message) string {
 	return "Huh?"
 }
 
+
+func echoChat(c string, m *ircbot.Message) string {
+	c = sanitizeRegex.ReplaceAllString(c, "_")
+
+	fmt.Fprintf(server.Stdin, "say <%s> %s\n", m.GetSender(), c)
+
+	return ""
+}
 
 func stop(sender string) string {
 	if !trusted[sender] {
@@ -251,15 +257,6 @@ func getMemUsage() (int, os.Error) {
 	}
 
 	return usage, nil
-}
-
-func say(args []string, sender string) string {
-	if args == nil {
-		return ""
-	}
-
-	fmt.Fprintf(server.Stdin, "say <%s> %s\n", sender, strings.Join(args, " "))
-	return ""
 }
 
 func tp(args []string) string {
