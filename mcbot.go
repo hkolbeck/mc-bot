@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strconv"
 	"bufio"
+	"container/vector"
 )
 
 var bot *ircbot.Bot
@@ -34,6 +35,7 @@ var freeForAll bool = true
 const network = "irc.cat.pdx.edu"
 const admin = "cbeck"
 const mcDir = "/disk/trump/cbeck"
+const itemFile = "/u/cbeck/irc-go/mcbot/items.json"
 
 func main() {
 	for {
@@ -52,6 +54,14 @@ func session() {
 	if e != nil {
 		panic(e.String())
 	}
+
+
+	e = parseItems(itemFile)
+
+	if e != nil {
+		log.Stderr("[E] Error loading items: " + e.String())
+		os.Exit(1)
+	}
 	
 	server, e = mcserver.StartServer(mcDir) 
 	
@@ -59,7 +69,7 @@ func session() {
 		log.Stderr("[E] Error creating server")
 		panic(e.String())
 	}
-	
+
 	go autoBackup(server)
 	go monitorOutput(server)
 	go io.Copy(server.Stdin, os.Stdin)
@@ -91,12 +101,18 @@ func parseCommand(c string, m *ircbot.Message) string {
 
 	switch command {
 	case "give":
-		return give(args)
+		return give(c)
+	case "parseitems" :
+		if e := parseItems(itemFile); e != nil {
+			return e.String()
+		}
+		return "Done, " + sender
 	case "restart":
 		return restart(sender)
 	case "backup":
 		return backup(args)
 	case "state":
+		log.Stdoutf("[I]%#v\n", items)
 		return state()
 	case "stop":
 		return stop(sender)
@@ -133,6 +149,10 @@ func parseCommand(c string, m *ircbot.Message) string {
 
 
 func echoChat(c string, m *ircbot.Message) string {
+	if server == nil || !server.IsRunning() {
+		return ""
+	}
+
 	c = sanitizeRegex.ReplaceAllString(c, "_")
 
 	fmt.Fprintf(server.Stdin, "say <%s> %s\n", m.GetSender(), c)
@@ -154,20 +174,66 @@ func stop(sender string) string {
 	return "Server halted."
 }
 
-func give(args []string) string {
+var giveRegex *regexp.Regexp = regexp.MustCompile(`give[ \t]+([a-zA-Z0-9_]+)[ \t]+([a-zA-Z ]+|[0-9]+)[ \t]*([0-9]+)?`)
+
+func give(cmd string) string {
+	var num int = 1
+	var id int
+	var err os.Error
+	var ok bool
+
 	if !server.IsRunning() {
 		return "The server is not currently running"
 	}
 
-	if len(args) == 2 { 
-		fmt.Fprintf(server.Stdin, "give %s %s %s\n", args[0], args[1], "1")
-	} else if len(args) == 3 {
-		fmt.Fprintf(server.Stdin, "give %s %s %s\n", args[0], args[1], args[2])
-	} else {
-		return "Expected format: `give <playername> <objectid> [num]`"
+	if match := giveRegex.FindStringSubmatch(cmd); match != nil {
+		log.Stdoutf("[I] %#v\n", match)
+		id, err = strconv.Atoi(match[2])
+		
+		if err != nil {
+			id, ok = items[strings.TrimSpace(strings.ToLower(match[2]))]
+			
+			if !ok {
+				return fmt.Sprintf("Unknown item: %s.  Did you mean %#v?" + match[2], notFound(match[2]))
+			}
+		}
+
+		if len(match) == 4 {
+			num, err = strconv.Atoi(match[3])
+			if err != nil {
+				return "Couldn't parse '" + match[3] + "' as a quantity."
+			}
+		}
+
+		for i := num; i > 0; i -= 64 {
+			fmt.Fprintf(server.Stdin, "give %s %d %d\n", match[1], id, min(64, i))
+		}
+
+		return ""
 	}
+
+	return "Expected format: `give <playername> <objectid | objectname> [num]`"
+}
+
+func notFound(query string) []string {
+	ans := make(vector.StringVector, 20, 0)
 	
-	return ""
+	for _, w := range strings.Split(query, " ", -1) {
+		for key := range items {
+			if p := strings.Index(key, w); p != -1 {
+				ans.Push(key)
+			}
+		}
+	}
+
+	return ans
+}
+
+func min(a, b int) int {
+	if a > b {
+		return b
+	}
+	return a
 }
 
 func restart(sender string) string {

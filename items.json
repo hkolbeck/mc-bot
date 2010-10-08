@@ -1,5 +1,4 @@
-{
-"air" : 0,
+{"air" : 0,
 "stone" : 1,
 "grass" : 2,
 "dirt" : 3,
@@ -179,5 +178,4 @@
 "compass" : 345,
 "fishing rod" : 346,
 "gold record" : 2256,
-"green record" : 2257,
-}
+"green record" : 2257}
