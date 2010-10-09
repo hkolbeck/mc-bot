@@ -226,13 +226,15 @@ func give(cmd string) string {
 	}
 
 	if match := giveRegex.FindStringSubmatch(cmd); match != nil {
+		match[2] = strings.TrimSpace(strings.ToLower(match[2]))
+
 		id, err = strconv.Atoi(match[2])
 		
 		if err != nil {
-			id, ok = items[strings.TrimSpace(strings.ToLower(match[2]))]
+			id, ok = items[match[2]]
 			
 			if !ok {
-				return fmt.Sprintf("Unknown item: %s.  Did you mean %v?", 
+				return fmt.Sprintf("Unknown item: '%s'.  Did you mean: %v", 
 					match[2], strings.Join(notFound(match[2]), ", "))
 			}
 		}
@@ -258,6 +260,10 @@ func notFound(query string) []string {
 	ans := make(vector.StringVector, 0, 20)
 	
 	for _, w := range strings.Split(query, " ", -1) {
+		if w == "" || w == " " {
+			continue
+		}
+
 		for key := range items {
 			if p := strings.Index(key, w); p != -1 {
 				ans.Push(key)
