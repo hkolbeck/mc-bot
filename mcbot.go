@@ -34,7 +34,7 @@ var freeForAll bool = true
 
 const network = "irc.cat.pdx.edu"
 const admin = "cbeck"
-const mcDir = "/disk/trump/cbeck"
+const mcDir = "/disk/trump/cbeck/hey0/bin"
 const itemFile = "/u/cbeck/irc-go/mcbot/items.json"
 
 func main() {

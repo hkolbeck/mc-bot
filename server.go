@@ -26,7 +26,7 @@ type Server struct {
 const STOP_TIMEOUT = 5e9
 
 func StartServer(dir string) (*Server, os.Error) {
-	proc, err := exec.Run("/usr/bin/java", []string{"-Xms1024M", "-Xmx1024M", "-jar", "mcs.jar"},
+	proc, err := exec.Run("/usr/bin/java", []string{"-Xms1024M", "-Xmx1024M", "-jar", "Minecraft_Mod.jar", "nogui"},
 		nil, dir, exec.Pipe, exec.Pipe, exec.MergeWithStdout)
 
 	if err != nil {
