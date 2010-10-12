@@ -44,7 +44,7 @@ func (s *Server) Stop(delay int64, msg string) {
 	s.mutex.Lock()
 	s.running = false
 	
-	s.Stdin.WriteString("say " + msg)
+	s.Stdin.WriteString("say " + msg + "\n")
 	
 	if delay < 0 {
 		time.Sleep(10e9)
@@ -82,9 +82,10 @@ func (s *Server) BackupState(filename string) (err os.Error) {
 	s.Stdin.WriteString("save-off\n")
 
 	time.Sleep(5e9) //Let save-off go through
-
-	bu, err := exec.Run("/u/cbeck/irc-go/mcbot/backup.sh", 
-		[]string{" ", filename},
+	//tar -czf mcServerBackups/$1 banned-ips.txt server.log server.properties banned-players.txt ops.txt world
+	
+	bu, err := exec.Run("/bin/tar", 
+		[]string{" ", "-czf", "mcServerBackups/" + filename, "banned-ips.txt", "server.log", "server.properties", "banned-players.txt", "ops.txt", "world"},
 		nil, s.dir, exec.DevNull, exec.Pipe, exec.MergeWithStdout)
 
 	if bu != nil {
