@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"fmt"
 	"io"
+	"log"
 )
 
 type Server struct {
@@ -21,11 +22,13 @@ type Server struct {
 	mutex *sync.Mutex
 	running bool
 	dir string
+	loginfo *log.Logger
+	logerr *log.Logger
 }
 
 const STOP_TIMEOUT = 5e9
 
-func StartServer(dir string) (*Server, os.Error) {
+func StartServer(dir string, loginfo, logerr *log.Logger) (*Server, os.Error) {
 	proc, err := exec.Run("/usr/bin/java", []string{"-Xms1024M", "-Xmx1024M", "-jar", "Minecraft_Mod.jar", "nogui"},
 		nil, dir, exec.Pipe, exec.Pipe, exec.MergeWithStdout)
 
@@ -33,7 +36,7 @@ func StartServer(dir string) (*Server, os.Error) {
 		return nil, err
 	}
 
-	return &Server{proc, &sync.Mutex{}, true, dir}, nil
+	return &Server{proc, &sync.Mutex{}, true, dir, loginfo, logerr}, nil
 }
 
 func (s *Server) Stop(delay int64, msg string) {
@@ -43,9 +46,8 @@ func (s *Server) Stop(delay int64, msg string) {
 
 	s.mutex.Lock()
 	s.running = false
-	
+	s.Stdin.WriteString("\nsave-all\n")
 	s.Stdin.WriteString("say " + msg + "\n")
-	
 	if delay < 0 {
 		time.Sleep(10e9)
 	} else {

@@ -28,6 +28,10 @@ var trusted map[string]bool = map[string]bool{"cbeck":true}
 var ignored map[string]bool = map[string]bool{}
 var lastList chan string = make(chan string, 1)
 var listReq bool
+var logerr *log.Logger = log.New(os.Stderr, "[E]", log.Ldate | log.Ltime)
+var loginfo *log.Logger = log.New(os.Stdout, "[I]", 0)
+
+
 
 //If false, only trusted people can issue -any- commands
 var freeForAll bool = true
@@ -55,18 +59,17 @@ func session() {
 		panic(e.String())
 	}
 
-
 	e = parseItems(itemFile)
 
 	if e != nil {
-		log.Stderr("[E] Error loading items: " + e.String())
+		logerr.Print("[E] Error loading items: " + e.String())
 		os.Exit(1)
 	}
 	
-	server, e = mcserver.StartServer(mcDir) 
+	server, e = mcserver.StartServer(mcDir, loginfo, logerr) 
 	
 	if e != nil {
-		log.Stderr("[E] Error creating server")
+		logerr.Print("[E] Error creating server")
 		panic(e.String())
 	}
 
@@ -207,13 +210,12 @@ func stop(sender string) string {
 	if !server.IsRunning() {
 		return "The server is not currently running"
 	}
-
 	server.Stop(10e9, fmt.Sprintf("Server halt requested by %s, going down in 10s\n", sender))
 	server = nil
 	return "Server halted."
 }
 
-var giveRegex *regexp.Regexp = regexp.MustCompile(`give[ \t]+([a-zA-Z0-9_]+)[ \t]+([a-zA-Z ]+|[0-9]+)[ \t]*([0-9]+)?`)
+var giveRegex *regexp.Regexp = regexp.MustCompile(`give[ \t]+([a-zA-Z0-9_]+)[ \t]+([a-zA-Z\- ]+|[0-9]+)[ \t]*([0-9]+)?`)
 
 func give(cmd string) string {
 	var num int = 1
@@ -239,7 +241,7 @@ func give(cmd string) string {
 			}
 		}
 
-		if len(match) == 4 {
+		if len(match) == 4 && match[3] != "" {
 			num, err = strconv.Atoi(match[3])
 			if err != nil {
 				return "Couldn't parse '" + match[3] + "' as a quantity."
@@ -289,7 +291,7 @@ func restart(sender string) string {
 	var err os.Error
 
 	server.Stop(10e9, fmt.Sprintf("Server restart requested by %s, going down in 10s\n", sender))
-	server, err = mcserver.StartServer("/disk/trump/cbeck")
+	server, err = mcserver.StartServer(mcDir, loginfo, logerr )
 
 	if err != nil {
 		return "Could not start server: " + err.String()
@@ -455,6 +457,6 @@ func monitorOutput(s *mcserver.Server) {
 			})
 		}
 
-		log.Stdout(str)
+		loginfo.Print(str)
 	}
 }
