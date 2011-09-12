@@ -1,0 +1,42 @@
+{
+    "MCServerCommand" : {
+	Command : "java",
+	Args : ["-Xms1024M", "-Xmx1024M", "-jar", "/home/smp/server/Minecraft_Mod.jar", "nogui"]
+    },
+
+    "Nick" : "MCBot",
+    "IRCServer" : "irc.cat.pdx.edu",
+    "IRCPort" : 6697,
+    "SSL" : true, 
+
+    "DefaultAccess" : ["?", "help", "list", "source", "state"],
+    "AccessLevels" : {
+	"Mod" : {
+	    "Members" : ["aardvark", "pilgrimd", "kennobaka"],
+	    "Allowed" : ["restart", "kick", "ban", "mapgen", "backup", "tp"]
+	},
+	"Admin" : {
+	    "Members" : ["cbeck", "nameless"],
+	    "Allowed" : ["restart", "kick", "ban", "mapgen", "backup", "tp", "give"]
+	}
+    },
+    
+    "Ignore" : [],
+
+    "BackupLocation" : "/home/smp/backups",
+    "ArchiverCommand" : {
+	"Command": "tar",
+	"Args" : ["-czf"]
+    },
+    "BackupInterval" : 60, "COMMENT" : "Time in minutes between backups",
+
+    "CopyCommand" : {
+	"Command" : "cp",
+	"Args" : ["-r", "/home/smp/server/world", "/tmp/mcworld"]
+    },
+    "MapUpdateCommand" : {
+	"Command" : "python",
+	"Args" : ["gmap.py", "--cachedir=/home/smp/map-cache", "/tmp/mcworld", "/home/smp/map"]
+    },
+    "MapUpdateInterval" : 1440
+}

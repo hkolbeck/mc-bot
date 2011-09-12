@@ -11,31 +11,30 @@ type Config struct {
 	Nick string
 	Pass string
 	IRCServer string
-	IRCDomain
+	IRCDomain string
 	IRCPort int
 	SSL bool
 
 	//Command access levels
 	DefaultAccess []string
 	AccessLevels map[string]AccessLevel
+	Ignore []string
 
 	//Backup related
 	BackupLocation string
 	ArchiverCommand string
 	CopyCommand string
-	BackupFrequency int
+	BackupInterval int64
 
 	//Map updater
+	WorldTemp string
 	MapUpdateCommand string
-	MapUpdateFrequency
+	MapUpdateInterval int64
 
 	//MC Server config
 	MCServerCommand string
 
-	CustomCommands map[string]string
-
 	//Derived values:
-	commands map[string]command
 
 	//The filename this config was pulled from
 	source string
