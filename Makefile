@@ -1,11 +1,14 @@
-GV=6
+include $(GOROOT)/src/Make.inc
 
 mcbot: mcserver
-	$(GV)g mcbot.go items.go
-	$(GV)l -o mc-bot mcbot.$(GV)
+	$(GC) mcbot.go items.go
+	$(LD) -o mc-bot mcbot.$(GV)
 
 mcserver:
-	$(GV)g -o mcserver.$(GV) server.go
+	cd server
+	make
+	make install
 
-clean:
-	-rm *.$(GV) *~ 2> /dev/null 
+test:
+	$(GC) -o test.6 config.go driver.go
+	$(LD) -o test test.6

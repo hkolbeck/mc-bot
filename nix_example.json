@@ -1,8 +1,9 @@
 {
     "MCServerCommand" : {
-	Command : "java",
-	Args : ["-Xms1024M", "-Xmx1024M", "-jar", "/home/smp/server/Minecraft_Mod.jar", "nogui"]
+	"Command" : "java",
+	"Args" : ["-Xms1024M", "-Xmx1024M", "-jar", "/home/cbeck/mc/minecraft_server.jar", "nogui"]
     },
+    "MCServerDir" : "/home/cbeck/mc/",
 
     "Nick" : "MCBot",
     "IRCServer" : "irc.cat.pdx.edu",
@@ -23,20 +24,17 @@
     
     "Ignore" : [],
 
-    "BackupLocation" : "/home/smp/backups",
-    "ArchiverCommand" : {
-	"Command": "tar",
-	"Args" : ["-czf"]
+    "BackupCommand" : {
+	"Command": "mc-backup",
+	"Args" : []
     },
+
     "BackupInterval" : 60, "COMMENT" : "Time in minutes between backups",
 
-    "CopyCommand" : {
-	"Command" : "cp",
-	"Args" : ["-r", "/home/smp/server/world", "/tmp/mcworld"]
-    },
     "MapUpdateCommand" : {
-	"Command" : "python",
-	"Args" : ["gmap.py", "--cachedir=/home/smp/map-cache", "/tmp/mcworld", "/home/smp/map"]
+	"Command" : "overviewer-update",
+	"Args" : []
     },
+
     "MapUpdateInterval" : 1440
 }

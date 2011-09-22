@@ -21,20 +21,22 @@ type Config struct {
 	Ignore []string
 
 	//Backup related
-	BackupLocation string
-	ArchiverCommand string
-	CopyCommand string
+	BackupCommand cmd
 	BackupInterval int64
 
 	//Map updater
-	WorldTemp string
-	MapUpdateCommand string
+	MapUpdateCommand cmd
 	MapUpdateInterval int64
 
 	//MC Server config
-	MCServerCommand string
+	MCServerCommand cmd
+	MCServerDir string
 
 	//Derived values:
+	defaultAccess map[string]bool
+	accessLevels map[string]map[string]bool
+	accessLevelMembers map[string][]string
+	ignore map[string]bool
 
 	//The filename this config was pulled from
 	source string
@@ -43,6 +45,11 @@ type Config struct {
 type AccessLevel struct {
 	Members []string
 	Allowed []string
+}
+
+type cmd struct {
+	Command string
+	Args []string
 }
 
 func ReadConfig(confFile string) (*Config, os.Error) {
@@ -62,6 +69,7 @@ func ReadConfig(confFile string) (*Config, os.Error) {
 	}
 
 	applyDefaults(conf)
+	mungeConfig(conf)
 	conf.source = confFile
 	return conf, nil
 }
@@ -88,7 +96,7 @@ func (c *Config) WriteConfig(confFile string) os.Error {
 		return err
 	}
 
-	err, _ = tmp.Write(raw)
+	_, err = tmp.Write(raw)
 	if err != nil {
 		return err
 	}
@@ -100,9 +108,37 @@ func (c *Config) WriteConfig(confFile string) os.Error {
 	return err
 }
 
+//Munge the config file/json friendly constructs into easier to use formats
+func mungeConfig(conf *Config) {
+	conf.defaultAccess = make(map[string]bool, len(conf.DefaultAccess))
+	for _, cmd := range conf.DefaultAccess {
+		conf.defaultAccess[cmd] = true
+	}
+
+	conf.ignore = make(map[string]bool, len(conf.Ignore))
+	for _, nick := range conf.Ignore {
+		conf.ignore[nick] = true
+	}
+
+	conf.accessLevels = make(map[string]map[string]bool, len(conf.AccessLevels))
+	conf.accessLevelMembers = make(map[string][]string)
+	for title, level := range conf.AccessLevels {
+		for _, nick := range level.Members {
+			conf.accessLevelMembers[nick] = append(conf.accessLevelMembers[nick], title)
+		}
+
+		conf.accessLevels[title] = make(map[string]bool)
+		for _, cmd := range level.Allowed {
+			conf.accessLevels[title][cmd] = true
+		}
+	}
+}
+
+
 func sanityCheck(c *Config) os.Error {
 	return nil
 }
 
 func applyDefaults(c *Config) {
+	return
 }

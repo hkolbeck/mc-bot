@@ -17,7 +17,7 @@ func main() {
 
 	server, err := mc.NewServer("java", 
 		[]string{"-Xms1024M", "-Xmx1024M", "-jar", "/home/cbeck/mc/minecraft_server.jar", "nogui"},
-		logInfo, logErr)
+		"/home/cbeck/mc/", logInfo, logErr)
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

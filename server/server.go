@@ -37,6 +37,7 @@ type Server struct {
 
 	serverCommand string
 	serverArgs []string
+	dir string
 	
 	infoLog *log.Logger
 	errLog *log.Logger
@@ -46,7 +47,7 @@ type Server struct {
 	running bool
 }
 
-func NewServer(command string, args []string, infoLog, errLog *log.Logger) (*Server, os.Error) {
+func NewServer(command string, args []string, dir string, infoLog, errLog *log.Logger) (*Server, os.Error) {
 	inChan := make(chan string, 1024)
 	outChan := make(chan string, 1024)
 	errChan := make(chan string, 1024)
@@ -64,6 +65,7 @@ func NewServer(command string, args []string, infoLog, errLog *log.Logger) (*Ser
 
 	serverCommand: command,
 	serverArgs: args,
+	dir: dir,
 
 	infoLog: infoLog,
 	errLog: errLog,
@@ -86,6 +88,7 @@ func (self *Server) Start() os.Error {
 	}
 
 	self.cmd = exec.Command(self.serverCommand, self.serverArgs...) 
+	self.cmd.Dir = self.dir
 
 	in, e := self.cmd.StdinPipe() 
 	if e != nil {
