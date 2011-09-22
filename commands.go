@@ -11,6 +11,24 @@ type command struct {
 	source int
 }
 
+var commandMap map[string]commandFunc = 
+	map[string]commandFunc {
+	"?" : helpCmd,
+	"backup" : backupCmd,
+	"ban" : banCmd,
+	"give" : giveCmd,
+	"help" : helpCmd,
+	"kick" : kickCmd,
+	"list" : listCmd,
+	"mapgen" : mapgenCmd,
+	"restart" : restartCmd,
+	"source" : sourceCmd,
+	"start" : startCmd,
+	"state" : stateCmd,
+	"stop" : stopCmd,
+	"tp" : tpCmd,
+}
+
 func commandDispatch() {
 	var reply []string
 
@@ -45,20 +63,54 @@ func commandDispatch() {
 	}
 }
 
-var commandMap map[string]commandFunc = 
-	map[string]commandFunc {
-	"?" : helpCmd,
-	"backup" : backupCmd,
-	"ban" : banCmd,
-	"give" : giveCmd,
-	"help" : helpCmd,
-	"kick" : kickCmd,
-	"list" : listCmd,
-	"mapgen" : mapgenCmd,
-	"restart" : restartCmd,
-	"source" : sourceCmd,
-	"start" : startCmd,
-	"state" : stateCmd,
-	"stop" : stopCmd,
-	"tp" : tpCmd,
+func helpCmd(args []string) []string {
+	return nil
+}
+
+func backupCmd(args []string) []string {
+	return nil 
+}
+
+func banCmd(args []string) []string {
+	return nil
+}
+
+func giveCmd(args []string) []string {
+	return nil 
+}
+
+func kickCmd(args []string) []string {
+	return nil 
+}
+
+func listCmd(args []string) []string {
+	return nil 
+}
+
+func mapgenCmd(args []string) []string {
+	return nil 
+}
+
+func restartCmd(args []string) []string {
+	return nil 
+}
+
+func sourceCmd(args []string) []string {
+	return nil 
+}
+
+func startCmd(args []string) []string {
+	return nil 
+}
+
+func stateCmd(args []string) []string {
+	return nil 
+}
+
+func stopCmd(args []string) []string {
+	return nil 
+}
+
+func tpCmd(args []string) []string {
+	return nil 
 }

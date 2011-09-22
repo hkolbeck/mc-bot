@@ -8,7 +8,7 @@ package main
 
 import (
 	"cbeck/ircbot"
-	"./mcserver"
+	"cbeck/mcserver"
 	"time"
 	"strings"
 	"os"
@@ -22,31 +22,13 @@ import (
 	"container/vector"
 )
 
-var bot *ircbot.Bot
-var server *mcserver.Server
-var trusted map[string]bool = map[string]bool{"cbeck":true}
-var ignored map[string]bool = map[string]bool{}
-var lastList chan string = make(chan string, 1)
-var listReq bool
-var logerr *log.Logger = log.New(os.Stderr, "[E]", log.Ldate | log.Ltime)
-var loginfo *log.Logger = log.New(os.Stdout, "[I]", 0)
+var (
+	bot *ircbot.Bot
+	server *mcserver.Server
+	logerr *log.Logger = log.New(os.Stderr, "[E]", log.Ldate | log.Ltime)
+	var loginfo *log.Logger = log.New(os.Stdout, "[I]", 0)
+)
 
-
-
-//If false, only trusted people can issue -any- commands
-var freeForAll bool = true
-
-const network = "irc.cat.pdx.edu"
-const admin = "cbeck"
-const mcDir = "/disk/trump/cbeck/hey0/bin"
-const itemFile = "/u/cbeck/irc-go/mcbot/items.json"
-
-func main() {
-	for {
-		session()
-		time.Sleep(10e9)
-	}
-}
 
 func session() {
 	defer ircbot.RecoverWithTrace()
