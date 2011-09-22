@@ -1,30 +1,52 @@
 package main
 
 import (
-	re "regexp"
-	"os"
+	"strings"
+	irc "cbeck/ircbot"
 	)
 
-
-
-var commands chan<- *command
-
-type command func([]string, string, <-chan string, chan<- string)
-
-type call {
-	command
-	args []string 
-	from string
+type commandFunc func([]string) []string
+type command struct {
+	raw string
+	source int
 }
 
-func (server *Server) commandDispatch() {
+func commandDispatch() {
+	var reply []string
+
 	for cmd := range commands {
-		cmd.command(cmd.args, cmd.from, serverOut, serverIn)
+		split = strings.Split(cmd.raw, " ")
+		if len(split) < 1 {
+			continue
+		}
+
+		f, ok := commandMap[split[0]]
+
+		if !ok {
+			reply = []string{"Unknown command: " + split[0]}
+		} else {
+			reply = f(split[1:])
+		}
+
+		switch cmd.source {
+		case SOURCE_MC:
+			for _, s := range reply {
+				server.In <- "say " + reply
+			}
+		case SOURCE_IRC:
+			for _, s := range reply {
+				bot.Send(&irc.Message{
+				Command : "PRIVMSG",
+				Args : []string{bot.IrcChan},
+				Trailing : s,
+				})		
+			}
+		}
 	}
 }
 
-var commandMap map[string]command = 
-	map[string]command {
+var commandMap map[string]commandFunc = 
+	map[string]commandFunc {
 	"?" : helpCmd,
 	"backup" : backupCmd,
 	"ban" : banCmd,

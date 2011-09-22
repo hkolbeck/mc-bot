@@ -1,7 +1,8 @@
 package main
 
 import (
-	"cbeck/ircbot"
+	irc "cbeck/ircbot"
+	mc "cbeck/mcserver"
 	"bufio"
 	"fmt"
 	"os"
@@ -10,80 +11,76 @@ import (
 
 
 var (
-	commandQueue chan<- command
-	serverIn chan<- string
-	serverOut <-chan string
+	chatRegex regex.Regexp 
+	sanitizeRegex regex.Regexp
+	commands chan *command
+	commandResponse chan string
 )
 
-func readServerOutput(server Server, out chan<- string) {
-	src, err := bufio.NewReader(server.Stdout)
-	if err != nil {
-		//Die?
-	}
-	//FIXME: type mismatch for line
-	for server.running {
-		line, pre, err := src.ReadLine()
-		if err != nil {
-			//Log and continue? Die?
-		}
+const (
+	SOURCE_MC = iota
+	SOURCE_IRC
+)
 
-		for pre && err != nil {
-			l := ""
-			l, pre, err = src.ReadLine()
-			line = append(line, l)
-		}
-		//More error checking here?
-
-		lineStr := string(line)
-		//Dispatch the read line to..
-		fmt.Print(lineStr) //The server console
-		
-		if chatRegex.Match(line) { //Irc, if it looks like chat
-			sendChat(lineStr)
-		} 
-
-		out <- lineStr //The server output queue
-	}
-	
+func init() {
+	chatRegex = regexp.MustCompile(`\[INFO\] (\* [a-zA-Z0-9\-]+|<[a-zA-Z0-9\-]>) (.*)`)
+	sanitizeRegex = regexp.MustCompile("\n\r")
+	commands = make(chan string, 1024)
+	commandResponse = make(chan string, 1024)
 }
 
-func readConsoleInput() {
-	src, err := bufio.NewReader(os.Stdin)
-	if err != nil {
-		//Die?
-	}
 
-	for server.running {
-		line, pre, err := src.ReadLine()
-		if err != nil {
-			//Log and continue? Die?
+func teeServerOutput() {
+	var line string
+
+	for {
+		//The MC Server uses Stderr for almost, but not quite, everything.
+		//Monitor both
+		select {
+		case line = <-server.Out:
+		case line = <-server.Err:
 		}
 
-		for pre && err != nil {
-			l := ""
-			l, pre, err = src.ReadLine()
-			line = append(line, l)
-		}
-		//More error checking here?
+		//And dispatch to:
+
+		fmt.Println(line) //The server console
 		
-		serverIn <- string(line)
+		if matches := chatRegex.FindStringSubmatch(line); match != nil { //Irc, if it looks like chat
+			if len(match) < 2 {
+				continue
+			}
+			
+			if match[1][0] == config.AttnChar { //Command issued from inside server
+				commands <- &command{match[1][1:], SOURCE_MC}
+			} else { //Chat
+				bot.Send(&ircbot.Message{
+				Command : "PRIVMSG",
+				Args : []string{bot.IrcChan},
+				Trailing : match[0] + match[1]
+				})		
+			}
+		} 
+
+		commandResponse <- line //The server output queue
 	}	
 }
 
-func writeServerInput(server Server, in <-chan string) {
-	for line := range in {
-		fmt.Fprintln(server.Stdin, strings.TrimSpace(line))
+func readConsoleInput() {
+	in := bufio.NewReader(os.Stdin)
+
+	for {
+		line, _, err := in.ReadLine()
+		if err != nil {
+			logErr.Println(err)
+			continue
+		} else if len(line) < 1 {
+			continue
+		}
+
+		server.In <- string(line)
 	}
 }
 
-
-/*
- [I]2011-08-29 10:45:05 [INFO] * cbeck foo
- [I]2011-08-29 10:48:14 [INFO] <cbeck> lololololol
- */
-
-//var chatRegex regex.Regexp = `\[INFO\] (\* [a-zA-Z0-9\-]+|<[a-zA-Z0-9\-]> ) (.*)`
-//var sanitizeRegex regex.Regexp = `\n\r`
 func echoIRCToServer(_ string, m ircbot.Message) string {
 	sanitized := sanitize.Regex.ReplaceAllString(m.Trailing, " ")
 
@@ -94,12 +91,4 @@ func echoIRCToServer(_ string, m ircbot.Message) string {
 	} //Else ignore
 
 	return ""
-}
-
-func (server *Server) echoServerToIRC(chat string) {
-	server.bot.Send(&ircbot.Message{
-	Command : "PRIVMSG",
-	Args : []string{server.IrcChan},
-	Trailing : chat
-	})
 }
