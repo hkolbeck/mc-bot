@@ -33,7 +33,7 @@ func commandDispatch() {
 	var reply []string
 
 	for cmd := range commands {
-		split = strings.Split(cmd.raw, " ")
+		split := strings.Split(cmd.raw, " ")
 		if len(split) < 1 {
 			continue
 		}
@@ -49,13 +49,13 @@ func commandDispatch() {
 		switch cmd.source {
 		case SOURCE_MC:
 			for _, s := range reply {
-				server.In <- "say " + reply
+				server.In <- "say " + s
 			}
 		case SOURCE_IRC:
 			for _, s := range reply {
 				bot.Send(&irc.Message{
 				Command : "PRIVMSG",
-				Args : []string{bot.IrcChan},
+				Args : []string{config.IrcChan},
 				Trailing : s,
 				})		
 			}

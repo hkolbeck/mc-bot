@@ -1,12 +1,11 @@
 package main
 
 import (
-	irc "cbeck/ircbot"
-	mc "cbeck/mcserver"
+//	irc "cbeck/ircbot"
+//	mc "cbeck/mcserver"
 	"bufio"
 	"fmt"
 	"os"
-	"strings"
 	)
 
 
@@ -56,7 +55,7 @@ func teeServerOutput() {
 				bot.Send(&ircbot.Message{
 				Command : "PRIVMSG",
 				Args : []string{bot.IrcChan},
-				Trailing : match[0] + match[1]
+				Trailing : match[0] + match[1],
 				})		
 			}
 		} 
