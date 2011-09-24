@@ -6,8 +6,12 @@
     "MCServerDir" : "/home/cbeck/mc/",
 
     "Nick" : "MCBot",
-    "IRCServer" : "irc.cat.pdx.edu",
-    "IRCPort" : 6697,
+    "AttnChar" : "%",
+    "IrcServer" : "irc.cat.pdx.edu",
+    "IrcPort" : 6697,
+    "IrcChan" : "#minecraft",
+    "IrcChanKey" : "",	
+    
     "SSL" : true, 
 
     "DefaultAccess" : ["?", "help", "list", "source", "state"],

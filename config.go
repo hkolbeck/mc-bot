@@ -10,9 +10,12 @@ type Config struct {
 	//IRC stuff
 	Nick string
 	Pass string
-	IRCServer string
-	IRCDomain string
-	IRCPort int
+	AttnChar string
+	IrcServer string
+	IrcChan string
+	IrcChanKey string
+	IrcDomain string
+	IrcPort int
 	SSL bool
 
 	//Command access levels

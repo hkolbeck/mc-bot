@@ -2,7 +2,7 @@ include $(GOROOT)/src/Make.inc
 
 mcbot: 
 	$(GC) mcbot.go config.go commands.go io.go
-	$(LD) -o mc-bot mcbot.$(GV)
+	$(LD) -o mc-bot mcbot.$(O)
 
 mcserver:
 	cd server

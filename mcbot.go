@@ -16,8 +16,9 @@ import (
 var (
 	bot *ircbot.Bot
 	server *mcserver.Server
-	logerr *log.Logger = log.New(os.Stderr, "[E]", log.Ldate | log.Ltime)
-	loginfo *log.Logger = log.New(os.Stdout, "[I]", 0)
+	config *Config
+	logErr *log.Logger = log.New(os.Stderr, "[E]", log.Ldate | log.Ltime)
+	logInfo *log.Logger = log.New(os.Stdout, "[I]", 0)
 )
 
 
