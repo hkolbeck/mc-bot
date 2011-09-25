@@ -174,6 +174,15 @@ func (self *Server) Destroy() os.Error {
 	return err
 }
 
+func (self *Server) GetPID() (int, os.Error) {
+	if !self.running {
+		return -1, os.NewError("Server not running.")
+	}	
+
+	return cmd.Process.Pid, nil
+}
+
+
 func (self *Server) readErr(errChan chan string, signal chan bool) {
 	var l []byte
 
