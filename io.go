@@ -12,6 +12,7 @@ import (
 var (
 	chatRegex *regexp.Regexp 
 	sanitizeRegex *regexp.Regexp
+	senderRegex *regexp.Regexp
 	commands chan *command
 	commandResponse chan string
 )
@@ -22,7 +23,8 @@ const (
 )
 
 func init() {
-	chatRegex = regexp.MustCompile(`\[INFO\]( \* [a-zA-Z0-9\-]+| <[a-zA-Z0-9\-]> )(.*)`)
+	chatRegex = regexp.MustCompile(`\[INFO\]( \* [a-zA-Z0-9\-]+| <[a-zA-Z0-9\-]+> )(.*)`)
+	senderRegex = regexp.MustCompile(`\[INFO\] (\* |<)([a-zA-Z0-9\-]+)[> ]`)
 	sanitizeRegex = regexp.MustCompile("\n\r")
 	commands = make(chan *command, 1024)
 	commandResponse = make(chan string, 1024)
@@ -45,17 +47,19 @@ func teeServerOutput() {
 		fmt.Println(line) //The server console
 		
 		if matches := chatRegex.FindStringSubmatch(line); matches != nil { //Irc, if it looks like chat
-			if len(matches) < 2 {
+			if len(matches) < 3 {
 				continue
 			}
 			
-			if matches[1][0] == bot.Attention { //Command issued from inside server
-				commands <- &command{matches[1][1:], SOURCE_MC}
+			if matches[2][0] == bot.Attention { //Command issued from inside server
+				senderMatches := senderRegex.FindStringSubmatch(line)
+				commands <- &command{matches[2][1:], senderMatches[2], SOURCE_MC}
+				logInfo.Printf("%s sent command '%s' from in-server", senderMatches[2], matches[2][1:])
 			} else { //Chat
 				bot.Send(&irc.Message{
 				Command : "PRIVMSG",
 				Args : []string{config.IrcChan},
-				Trailing : matches[0] + matches[1],
+				Trailing : matches[1] + matches[2],
 				})		
 			}
 		} 
@@ -80,7 +84,7 @@ func readConsoleInput() {
 	}
 }
 
-func echoIRCToServer(_ string, m irc.Message) string {
+func echoIRCToServer(_ string, m *irc.Message) string {
 	sanitized := sanitizeRegex.ReplaceAllString(m.Trailing, " ")
 
 	if m.Ctcp == "" { //Line was normal chat
