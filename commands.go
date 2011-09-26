@@ -8,6 +8,9 @@ import (
 	"io/ioutil"
 	"regexp"
 	"exec"
+	"net"
+	"time"
+	"os"
 	)
 
 type commandFunc func([]string) []string
@@ -69,7 +72,8 @@ var commandHelpMap map[string]string =
 		" estimate of its progress.",
 
 	"restart" : fmt.Sprintf("restart [delay] [message]: Restart the server after issuing [message] and " +
-		"waiting [delay] seconds.  If [delay] is not present, wait %d seconds.", DefaultStopDelay / 1e9),
+		"waiting [delay] seconds.  If [delay] is not present, wait %d seconds.", 
+		DefaultStopDelay / int64(1e9)),
 
 	"source" : "source: Get information on this bot's source code.",
 
@@ -78,7 +82,7 @@ var commandHelpMap map[string]string =
 	"state" : "state: Get information on the current server process.",
 
 	"stop" : fmt.Sprintf("stop [delay] [message]: Stop the server after issuing [message] and waiting " +
-		"[delay] seconds.  If [delay] is not present, wait %d seconds.", DefaultStopDelay / 1e9),
+		"[delay] seconds.  If [delay] is not present, wait %d seconds.", DefaultStopDelay / int64(1e9)),
 
 	"tp" : "tp <player> <destination player>: Teleport <player> to <destination player>'s location.",
 }
@@ -139,7 +143,7 @@ func allowed(sender, op string, source int) bool {
 		sender = "mc:" + sender
 	case SOURCE_IRC:
 	
-		//TODO: Make sure irc nick is actually ok 
+		//TODO: Make sure irc nick is registered
 
 		sender = "irc:" + sender
 	}
@@ -185,19 +189,95 @@ func backupCmd(args []string) []string {
 }
 
 func banCmd(args []string) []string {
-	return nil
+	if len(args) == 0 || len(args) > 2 {
+		return []string{"Usage: " + commandHelpMap["ban"]}
+	}
+
+	var ext string
+	isTemp := "."
+	//If the thing being banned is an ip, we'll need to append '-ip' to our commands
+	if net.ParseIP(args[0]) != nil {
+		ext = "-ip"
+	}
+
+	if len(args) == 2 {
+		dur, err := strconv.Atoi64(args[1])
+		if err != nil || dur <= 0{
+			return []string{"Could not parse " + args[1] + " as a positive integer."}
+		}
+		isTemp = fmt.Sprintf(" for %d minute(s).", dur)
+
+		go func() {
+			//dur will be in seconds, After() expects nanoseconds
+			<-(time.After(dur * 60e9)) 
+			server.In <- "pardon" + ext + " " + args[0]
+		}()
+	}
+
+	server.In <- "ban" + ext + " " + args[0] 
+	
+	return []string{args[0] + " has been banned" + isTemp}
 }
 
 func pardonCmd(args []string) []string {
-	return nil
-}
+	if len(args) != 1 {
+		return []string{"Usage: " + commandHelpMap["pardon"]}
+	}
+
+	if net.ParseIP(args[0]) != nil {
+		server.In <- "pardon-ip " + args[0]
+	} else {
+		server.In <- "pardon " + args[0]
+	}
+
+	return []string{args[0] + " has been pardoned."}
+} 
 
 func giveCmd(args []string) []string {
 	return nil 
 }
 
+var kickSuccessRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] CONSOLE: Kicking ([a-zA-Z0-9\-]+)`)
+var kickFailureRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] Can't find user ([a-zA-Z0-9\-]+). No kick.`)
 func kickCmd(args []string) []string {
-	return nil 
+	if len(args) < 1 || 2 < len(args){
+		return []string{"Usage: " + commandHelpMap["kick"]}
+	}
+
+	var reply string
+	var dur int64 = -1
+	var err os.Error
+
+	if len(args) == 2 {
+		if dur, err = strconv.Atoi64(args[1]); err != nil || dur <= 0{
+			return []string{"Couldn't parse " + args[1] + " as a positive integer."}
+		}
+	}
+
+	server.In <- "kick " + args[0]
+
+	for line := range commandResponse {
+		if match := kickSuccessRegex.FindStringSubmatch(line); match != nil {
+			if match[1] == args[0] {
+				reply = args[0] + " was kicked"
+				break
+			}
+		} else if match = kickFailureRegex.FindStringSubmatch(line); match != nil {
+			if match[1] == args[0] {
+				return []string{"Kicking " + args[0] + " failed."}
+			}
+		}
+	}
+
+	if dur != -1 {
+		reply = fmt.Sprintf("%s was kickbanned and will be pardoned in %d minute(s).", args[0], dur)
+		go func() {
+			<-(time.After(dur * 60e9))
+			server.In <- "pardon " + args[0]
+		}()
+	}
+
+	return []string{reply}
 }
 
 

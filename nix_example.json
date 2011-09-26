@@ -17,15 +17,15 @@
     "IrcChanKey" : "",	    
     "SSL" : true, 
 
-    "DefaultAccess" : ["?", "help", "list", "source", "state", "start", "stop"],
+    "DefaultAccess" : ["?", "help", "list", "source", "state"],
     "AccessLevels" : {
 	"Mod" : {
 	    "Members" : ["irc:aardvark", "irc:pilgrimd", "irc:kennobaka"],
-	    "Allowed" : ["restart", "kick", "ban", "mapgen", "backup", "tp"]
+	    "Allowed" : ["restart", "kick", "mapgen", "backup", "tp"]
 	},
 	"Admin" : {
 	    "Members" : ["irc:cbeck", "irc:nameless"],
-	    "Allowed" : ["restart", "start", "stop", "kick", "ban", "mapgen", "backup", "tp", "give"]
+	    "Allowed" : ["restart", "start", "stop", "kick", "ban", "pardon", "mapgen", "backup", "tp", "give"]
 	}
     },
     
