@@ -89,7 +89,15 @@ func readConsoleInput() {
 			continue
 		}
 
-		server.In <- string(line)
+		//A 'stop' issued at the console could easily muck things up
+		//Hijack it.
+		if string(line) == "stop" {
+			server.Stop(1e9, "Stop issued at console. Going down now!")
+			serverErrors = 0
+			severeServerErrors = 0
+		} else {
+			server.In <- string(line)
+		}		
 	}
 }
 
