@@ -254,7 +254,7 @@ func stateCmd(args []string) (reply []string) {
 
 	switch config.HostOS {
 	case "linux":
-		raw, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status"))
+		raw, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
 		if err != nil {
 			reply = []string{"Error while assessing status: " + err.String()}
 		}		
@@ -300,12 +300,20 @@ func stopCmd(args []string) []string {
 	} else {
 		if d, err := strconv.Atoi64(args[0]); err == nil {
 			delay = d * 1e9
-			msg = fmt.Sprintf("Stop command issued, going down in %d seconds.", delay / 1e9) 
+			args = args[1:]
 		} else {
 			delay = DefaultStopDelay
+		}
+
+		if len(args) > 0 {
 			msg = strings.Join(args, " ")
+		} else { 
+			msg = fmt.Sprintf("Stop command issued, going down in %d seconds.", delay / 1e9) 
 		}
 	} 
+
+	serverErrors = 0
+	severeServerErrors = 0
 
 	if err := server.Stop(delay, msg); err != nil {
 		return []string{err.String()}
