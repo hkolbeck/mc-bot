@@ -12,9 +12,10 @@ import (
 var (
 	chatRegex *regexp.Regexp 
 	sanitizeRegex *regexp.Regexp
-	senderRegex *regexp.Regexp
 	commands chan *command
 	commandResponse chan string
+	serverErrors int
+	severeServerErrors int
 )
 
 const (
@@ -24,7 +25,6 @@ const (
 
 func init() {
 	chatRegex = regexp.MustCompile(`\[INFO\]( \* [a-zA-Z0-9\-]+| <[a-zA-Z0-9\-]+> )(.*)`)
-	senderRegex = regexp.MustCompile(`\[INFO\] (\* |<)([a-zA-Z0-9\-]+)[> ]`)
 	sanitizeRegex = regexp.MustCompile("\n\r")
 	commands = make(chan *command, 1024)
 	commandResponse = make(chan string, 1024)
@@ -33,6 +33,9 @@ func init() {
 
 func teeServerOutput() {
 	var line string
+	senderRegex := regexp.MustCompile(`\[INFO\] (\* |<)([a-zA-Z0-9\-]+)[> ]`)
+	errorRegex := regexp.MustCompile(`java.*Exception`) 
+	severeErrorRegex := regexp.MustCompile(`\[SEVERE\] Unexpected exception`) 
 
 	for {
 		//The MC Server uses Stderr for almost, but not quite, everything.
@@ -40,6 +43,12 @@ func teeServerOutput() {
 		select {
 		case line = <-server.Out:
 		case line = <-server.Err:
+		}
+
+		if errorRegex.MatchString(line) {
+			serverErrors++
+		} else if severeErrorRegex.MatchString(line) {
+			severeServerErrors++
 		}
 
 		//And dispatch to:

@@ -7,6 +7,8 @@ import (
 	)
 
 type Config struct {
+	HostOS string
+
 	//IRC stuff
 	Nick string
 	Pass string

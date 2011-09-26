@@ -6,6 +6,8 @@ import (
 	irc "cbeck/ircbot"
 	"fmt"
 	"io/ioutil"
+	"regexp"
+	"exec"
 	)
 
 type commandFunc func([]string) []string
@@ -56,7 +58,7 @@ var commandHelpMap map[string]string =
 		"is present, spawn that many of <item>.  Some items may not be spawnable by name.",
 
 	"help" :  "help [command]: If [command] is present, get usage information on that command, otherwise" +
-		" display a list of available commands",,
+		" display a list of available commands",
 
 	"kick" : "kick <player> [duration]: Kick <player> off the server.  Player will be able to rejoin" + 
 		" immediatly unless [duration] is present, in which case they will be banned for that many minutes.",
@@ -67,7 +69,7 @@ var commandHelpMap map[string]string =
 		" estimate of its progress.",
 
 	"restart" : fmt.Sprintf("restart [delay] [message]: Restart the server after issuing [message] and " +
-		"waiting [delay] seconds.  If [delay] is not present, wait %d seconds.", defaultStopDelay / 1e9),
+		"waiting [delay] seconds.  If [delay] is not present, wait %d seconds.", DefaultStopDelay / 1e9),
 
 	"source" : "source: Get information on this bot's source code.",
 
@@ -76,7 +78,7 @@ var commandHelpMap map[string]string =
 	"state" : "state: Get information on the current server process.",
 
 	"stop" : fmt.Sprintf("stop [delay] [message]: Stop the server after issuing [message] and waiting " +
-		"[delay] seconds.  If [delay] is not present, wait %d seconds.", defaultStopDelay / 1e9),
+		"[delay] seconds.  If [delay] is not present, wait %d seconds.", DefaultStopDelay / 1e9),
 
 	"tp" : "tp <player> <destination player>: Teleport <player> to <destination player>'s location.",
 }
@@ -159,9 +161,11 @@ func allowed(sender, op string, source int) bool {
 
 func helpCmd(args []string) []string {
 	var reply string
+	var ok bool
+
 	if len(args) == 0 {
 		reply = "Available commands: ?"
-		for k := range commandMap {
+		for k := range commandHelpMap {
 			reply += ", " + k
 		}
 	} else if len(args) == 1 {
@@ -197,12 +201,12 @@ func kickCmd(args []string) []string {
 }
 
 
-var listRegex *regexp.MustCompile(`\[INFO\] (Connected players: .*)`)
+var listRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (Connected players: .*)`)
 func listCmd(args []string) []string {
 	server.In <- "list"
 
 	for line := range commandResponse {
-		if match := listRegex.FindStringSubmatch(line); if match != nil {
+		if match := listRegex.FindStringSubmatch(line); match != nil {
 			return match[1:]
 		}
 	}
@@ -235,27 +239,55 @@ func startCmd(args []string) []string {
 	return []string{"Server started."}
 }
 
-func stateCmd(args []string) []string {
+func stateCmd(args []string) (reply []string) {
+	var lines []string
+
+	if len(args) > 0 {
+		return []string{"'state' expects no arguments."}
+	}
+
+	//GetPID will return an error if server is not running
 	pid, err := server.GetPID()
 	if err != nil {
 		return []string{err.String()}
 	}
+
 	switch config.HostOS {
 	case "linux":
-		raw, err := ioutil.ReadFile(fmt.Sprintf())
-
-
-
-
-
-
+		raw, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status"))
+		if err != nil {
+			reply = []string{"Error while assessing status: " + err.String()}
+		}		
+		lines = strings.Split(string(raw), "\n")
 	case "windows":
-
-
-
+		cmd := exec.Command("tasklist", "/FI", fmt.Sprintf("pid eq %d", pid), "/FO", "LIST")
+		raw, err := cmd.Output()
+		if err != nil {
+			reply = []string{"Error while assessing status: " + err.String()}
+		}
+		lines = strings.Split(string(raw), "\r\n")
 	}
 
-	return nil 
+	stats := make(map[string]string, 24)
+	for _, line := range lines {
+		split := strings.Split(line, ":")
+		stats[split[0]] = line
+	}
+
+	switch config.HostOS {
+	case "linux":
+		reply = append(reply, stats["VmSize"])
+		reply = append(reply, stats["VmSwap"])
+		reply = append(reply, stats["Threads"])
+	case "windows":
+		reply = append(reply, stats["Mem Usage"])
+		reply = append(reply, stats["Status"])
+	}
+
+	reply = append(reply, fmt.Sprintf("Total Errors: %d", serverErrors))
+	reply = append(reply, fmt.Sprintf("Severe Errors: %d", severeServerErrors))
+
+	return 
 }
 
 func stopCmd(args []string) []string {

@@ -179,7 +179,7 @@ func (self *Server) GetPID() (int, os.Error) {
 		return -1, os.NewError("Server not running.")
 	}	
 
-	return cmd.Process.Pid, nil
+	return self.cmd.Process.Pid, nil
 }
 
 
