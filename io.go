@@ -27,7 +27,7 @@ func init() {
 	chatRegex = regexp.MustCompile(`\[INFO\]( \* [a-zA-Z0-9\-]+| <[a-zA-Z0-9\-]+> )(.*)`)
 	sanitizeRegex = regexp.MustCompile("\n\r")
 	commands = make(chan *command, 1024)
-	commandResponse = make(chan string, 1024)
+	commandResponse = make(chan string, 2048)
 }
 
 
@@ -72,9 +72,13 @@ func teeServerOutput() {
 				})		
 			}
 		} 
-
-		commandResponse <- line //The server output queue
-	}	
+		
+		select {
+		case: commandResponse <- line //The server output queue
+		case: <-commandResponse //If the buffer has filled, drop the oldest line
+			commandResponse <- line
+		}
+	}
 }
 
 func readConsoleInput() {
