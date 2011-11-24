@@ -112,6 +112,13 @@ func commandDispatch() {
 		
 			logInfo.Printf("%s attempted '%s'\n", cmd.sender, cmd.raw)
 		} else {
+			//Flush the server output queue first
+			for {
+				select {
+				case <-commandResponse:
+				default: break
+				}
+			}
 			reply = f(split[1:])
 		}
 		
