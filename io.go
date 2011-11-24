@@ -5,6 +5,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"regexp"
 	)
 
@@ -28,6 +30,22 @@ func init() {
 	sanitizeRegex = regexp.MustCompile("\n\r")
 	commands = make(chan *command, 1024)
 	commandResponse = make(chan string, 2048)
+	go func() {
+		for sig := range signal.Incoming {
+			usig, _ := sig.(os.UnixSignal)
+			fmt.Fprintln(os.Stderr, "Recieved signal: " + sig.String())
+			switch (usig) {
+			case syscall.SIGINT, syscall.SIGTERM:
+				server.Destroy()
+				os.Exit(1)
+			case syscall.SIGHUP:
+				err := config.Reparse()
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Config reparse failed: " + err.String())
+				}
+			}
+		}
+	}()
 }
 
 
@@ -74,8 +92,8 @@ func teeServerOutput() {
 		} 
 		
 		select {
-		case: commandResponse <- line //The server output queue
-		case: <-commandResponse //If the buffer has filled, drop the oldest line
+		case commandResponse <- line: //The server output queue
+		case <-commandResponse: //If the buffer has filled, drop the oldest line
 			commandResponse <- line
 		}
 	}
@@ -93,7 +111,7 @@ func readConsoleInput() {
 			continue
 		}
 
-		//A 'stop' issued at the console could easily muck things up
+		//A 'stop' issued at the console could easily muck things up.
 		//Hijack it.
 		if string(line) == "stop" {
 			server.Stop(1e9, "Stop issued at console. Going down now!")
