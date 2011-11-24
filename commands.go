@@ -39,6 +39,7 @@ var commandMap map[string]commandFunc =
 	"source" : sourceCmd,
 	"start" : startCmd,
 	"state" : stateCmd,
+	"status" : stateCmd,
 	"stop" : stopCmd,
 	"tp" : tpCmd,
 	"version" : versionCmd,
@@ -333,6 +334,7 @@ func startCmd(args []string) []string {
 	for line := range commandResponse {
 		if match := versionRegex.FindStringSubmatch(line); match != nil {
 			serverVersion = match[1]
+			break
 		}
 	}
 
