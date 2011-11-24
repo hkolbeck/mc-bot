@@ -18,6 +18,7 @@ var (
 	commandResponse chan string
 	serverErrors int
 	severeServerErrors int
+	serverVersion string
 )
 
 const (

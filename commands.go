@@ -41,6 +41,8 @@ var commandMap map[string]commandFunc =
 	"state" : stateCmd,
 	"stop" : stopCmd,
 	"tp" : tpCmd,
+	"version" : versionCmd,
+	"whitelist" : whitelistCmd,
 }
 
 var commandHelpMap map[string]string = 
@@ -85,6 +87,10 @@ var commandHelpMap map[string]string =
 		"[delay] seconds.  If [delay] is not present, wait %d seconds.", DefaultStopDelay / int64(1e9)),
 
 	"tp" : "tp <player> <destination player>: Teleport <player> to <destination player>'s location.",
+
+	"version" : "version: Get the version number of the currently running minecraft server.",
+
+	"whitelist" : "whitelist <add <name>|del <name>|list>: Manipulate or examine the server's whitelist.",
 }
 
 
@@ -314,6 +320,7 @@ func sourceCmd(args []string) []string {
 			" information can be found at https://github.com/ckolbeck/mc-bot"}
 }
 
+var versionRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] Starting (minecraft server version .*)`)
 func startCmd(args []string) []string {
 	if len(args) > 0 {
 		return []string{"'start' does not take any arguments"}
@@ -321,6 +328,12 @@ func startCmd(args []string) []string {
 
 	if err := server.Start(); err != nil {
 		return []string{err.String()}
+	}
+
+	for line := range commandResponse {
+		if match := versionRegex.FindStringSubmatch(line); match != nil {
+			serverVersion = match[1]
+		}
 	}
 
 	return []string{"Server started."}
@@ -401,6 +414,7 @@ func stopCmd(args []string) []string {
 
 	serverErrors = 0
 	severeServerErrors = 0
+	serverVersion = ""
 
 	if err := server.Stop(delay, msg); err != nil {
 		return []string{err.String()}
@@ -412,3 +426,15 @@ func stopCmd(args []string) []string {
 func tpCmd(args []string) []string {
 	return nil 
 }
+
+func versionCmd(args []string) []string {
+	if serverVersion != "" {
+		return []string{serverVersion}
+	}
+	return []string{"Server not running or version unknown."}
+}
+
+func whitelistCmd(args []string) []string {
+	return nil 
+}
+
