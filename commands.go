@@ -384,8 +384,9 @@ func stateCmd(args []string) (reply []string) {
 		reply = append(reply, stats["Status"])
 	}
 
-	reply = append(reply, fmt.Sprintf("Total Errors: %d", serverErrors))
+	reply = append(reply, fmt.Sprintf("Errors: %d", serverErrors))
 	reply = append(reply, fmt.Sprintf("Severe Errors: %d", severeServerErrors))
+	reply = append(reply, serverVersion)
 
 	return 
 }
