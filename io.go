@@ -27,8 +27,8 @@ const (
 )
 
 func init() {
-	chatRegex = regexp.MustCompile(`\[INFO\]( \* [a-zA-Z0-9\-]+| <[a-zA-Z0-9\-]+> )(.*)`)
-	sanitizeRegex = regexp.MustCompile("\n\r")
+	chatRegex = regexp.MustCompile(`\[INFO\]( \* [a-zA-Z0-9\-_]+| <[a-zA-Z0-9\-_]+> )(.*)`)
+	sanitizeRegex = regexp.MustCompile("[\n\r]")
 	commands = make(chan *command, 1024)
 	commandResponse = make(chan string, 2048)
 	go func() {
@@ -52,7 +52,7 @@ func init() {
 
 func teeServerOutput() {
 	var line string
-	senderRegex := regexp.MustCompile(`\[INFO\] (\* |<)([a-zA-Z0-9\-]+)[> ]`)
+	senderRegex := regexp.MustCompile(`\[INFO\] (\* |<)([a-zA-Z0-9\-_]+)[> ]`)
 	errorRegex := regexp.MustCompile(`java.*Exception`) 
 	severeErrorRegex := regexp.MustCompile(`\[SEVERE\] Unexpected exception`) 
 

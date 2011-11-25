@@ -120,10 +120,10 @@ func commandDispatch() {
 			logInfo.Printf("%s attempted '%s'\n", cmd.sender, cmd.raw)
 		} else {
 			//Flush the server output queue first
-			for {
+		Flush: for {
 				select {
-				case <-commandResponse:
-				default: break
+				case <-commandResponse: 
+				default: break Flush
 				}
 			}
 			reply = f(split[1:])
@@ -332,6 +332,7 @@ func startCmd(args []string) []string {
 	}
 
 	for line := range commandResponse {
+		print("Spinning in %start")
 		if match := versionRegex.FindStringSubmatch(line); match != nil {
 			serverVersion = match[1]
 			break
