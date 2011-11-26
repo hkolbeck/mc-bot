@@ -314,7 +314,8 @@ func mapgenCmd(args []string) []string {
 }
 
 func restartCmd(args []string) []string {
-	return []string{notImplemented} 
+	stopCmd(args)
+	return startCmd(nil)
 }
 
 func sourceCmd(args []string) []string {
@@ -333,7 +334,6 @@ func startCmd(args []string) []string {
 	}
 
 	for line := range commandResponse {
-		print("Spinning in %start")
 		if match := versionRegex.FindStringSubmatch(line); match != nil {
 			serverVersion = match[1]
 			break
@@ -427,7 +427,14 @@ func stopCmd(args []string) []string {
 
 	return []string{"Server stopped."}
 }
-
+/*
+tp cbeck foo
+ 2011-11-26 01:27:45 [INFO] Can't find user foo. No tp.
+tp foo cbeck
+ 2011-11-26 01:27:50 [INFO] Can't find user foo. No tp.
+tp cbeck akhiros
+ 2011-11-26 01:28:30 [INFO] CONSOLE: Teleporting cbeck to akhiros.
+*/
 func tpCmd(args []string) []string {
 	return []string{notImplemented} 
 }
