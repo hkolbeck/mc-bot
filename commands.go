@@ -92,7 +92,7 @@ var commandHelpMap map[string]string =
 
 	"version" : "version: Get the version number of the currently running minecraft server.",
 
-	"whitelist" : "whitelist <add <name>|del <name>|list>: Manipulate or examine the server's whitelist.",
+	"whitelist" : "whitelist <add <name>|remove <name>|list>: Manipulate or examine the server's whitelist.",
 }
 
 
@@ -325,8 +325,8 @@ func sourceCmd(args []string) []string {
 
 var versionRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] Starting (minecraft server version .*)`)
 func startCmd(args []string) []string {
-	if len(args) > 0 {
-		return []string{"'start' does not take any arguments"}
+	if len(args) != 0{
+		return []string{"Usage: " + commandHelpMap["start"]}
 	}
 
 	if err := server.Start(); err != nil {
@@ -345,9 +345,8 @@ func startCmd(args []string) []string {
 
 func stateCmd(args []string) (reply []string) {
 	var lines []string
-
-	if len(args) > 0 {
-		return []string{"'state' expects no arguments."}
+	if len(args) != 0{
+		return []string{"Usage: " + commandHelpMap["state"]}
 	}
 
 	//GetPID will return an error if server is not running
@@ -446,7 +445,47 @@ func versionCmd(args []string) []string {
 	return []string{"Server not running or version unknown."}
 }
 
-func whitelistCmd(args []string) []string {
-	return []string{notImplemented} 
+/*
+whitelist remove cbeck
+ 2011-11-26 01:51:38 [INFO] CONSOLE: Removed cbeck from white-list
+whitelist add cbeck
+ 2011-11-26 01:52:03 [INFO] CONSOLE: Added cbeck to white-list
+ --
+[INFO] White-listed players:
+*/
+var whitelistRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] CONSOLE: (Removed .+ from white-list|Added .+ to white-list)`)
+func whitelistCmd(args []string) (reply []string) {
+	if len(args) == 0 {
+		return []string{"Usage: " + commandHelpMap["whitelist"]}
+	}
+	
+	switch args[0] {
+	case "add", "remove":
+		if len(args) < 2 {
+			return []string{args[0] + " requires at least one argument"}
+		}
+
+		for _, name := range args[1:] {
+			server.In <- fmt.Sprintf("whitelist %s %s", args[0], name)
+			for line := range commandResponse {
+				if match := whitelistRegex.FindStringSubmatch(line); match != nil {
+					reply = append(reply, match[1])
+					break
+				}
+				 
+			}
+		}
+	case "list":
+		for line := range commandResponse {
+			if index := strings.Index(line, "White-listed players:"); index != -1 {
+				reply = append(reply, line[index:])
+				break
+			}	
+		}
+	default:
+		return []string{"Usage: " + commandHelpMap["whitelist"]}
+	}
+
+	return
 }
 
