@@ -22,6 +22,7 @@ type command struct {
 
 const (
 	DefaultStopDelay = 5e9
+	notImplemented = "This command is not yet implemented"
 )
 
 var commandMap map[string]commandFunc = 
@@ -199,7 +200,7 @@ func helpCmd(args []string) []string {
 }
 
 func backupCmd(args []string) []string {
-	return nil 
+	return []string{notImplemented} 
 }
 
 func banCmd(args []string) []string {
@@ -248,7 +249,7 @@ func pardonCmd(args []string) []string {
 } 
 
 func giveCmd(args []string) []string {
-	return nil 
+	return []string{notImplemented} 
 }
 
 var kickSuccessRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] CONSOLE: Kicking ([a-zA-Z0-9\-]+)`)
@@ -309,11 +310,11 @@ func listCmd(args []string) []string {
 }
 
 func mapgenCmd(args []string) []string {
-	return nil 
+	return []string{notImplemented} 
 }
 
 func restartCmd(args []string) []string {
-	return nil 
+	return []string{notImplemented} 
 }
 
 func sourceCmd(args []string) []string {
@@ -428,7 +429,7 @@ func stopCmd(args []string) []string {
 }
 
 func tpCmd(args []string) []string {
-	return nil 
+	return []string{notImplemented} 
 }
 
 func versionCmd(args []string) []string {
@@ -439,6 +440,6 @@ func versionCmd(args []string) []string {
 }
 
 func whitelistCmd(args []string) []string {
-	return nil 
+	return []string{notImplemented} 
 }
 
