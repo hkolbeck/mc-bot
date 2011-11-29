@@ -427,15 +427,30 @@ func stopCmd(args []string) []string {
 	return []string{"Server stopped."}
 }
 /*
-tp cbeck foo
+ tp cbeck foo
  2011-11-26 01:27:45 [INFO] Can't find user foo. No tp.
-tp foo cbeck
+ tp foo cbeck
  2011-11-26 01:27:50 [INFO] Can't find user foo. No tp.
-tp cbeck akhiros
+ tp cbeck akhiros
  2011-11-26 01:28:30 [INFO] CONSOLE: Teleporting cbeck to akhiros.
-*/
+ [INFO] User cbeck and akhiros are in different dimensions. No tp.
+ */
+var tpRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (CONSOLE:)? (Teleporting.*|Can't find user.*)`)
 func tpCmd(args []string) []string {
-	return []string{notImplemented} 
+	if len(args) != 2 {
+		return []string{"Usage: " + commandHelpMap["tp"]}
+	}
+
+	server.In <- fmt.Sprintf("tp %s %s", args[0], args[1])
+
+	for line := range commandResponse {
+		if match := tpRegex.FindStringSubmatch(line); match != nil {
+			return []string{match[2]}
+		}
+	}
+
+	//Shouldn't be reachable
+	return nil
 }
 
 func versionCmd(args []string) []string {
@@ -476,6 +491,7 @@ func whitelistCmd(args []string) (reply []string) {
 			}
 		}
 	case "list":
+		server.In <- "whitelist list"
 		for line := range commandResponse {
 			if index := strings.Index(line, "White-listed players:"); index != -1 {
 				reply = append(reply, line[index:])
