@@ -208,6 +208,10 @@ func banCmd(args []string) []string {
 		return []string{"Usage: " + commandHelpMap["ban"]}
 	}
 
+	if !server.IsRunning() {
+		return []string{"Server not currently running."}
+	}
+
 	var ext string
 	isTemp := "."
 	//If the thing being banned is an ip, we'll need to append '-ip' to our commands
@@ -239,6 +243,10 @@ func pardonCmd(args []string) []string {
 		return []string{"Usage: " + commandHelpMap["pardon"]}
 	}
 
+	if !server.IsRunning() {
+		return []string{"Server not currently running."}
+	}
+
 	if net.ParseIP(args[0]) != nil {
 		server.In <- "pardon-ip " + args[0]
 	} else {
@@ -257,6 +265,10 @@ var kickFailureRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] Can't find us
 func kickCmd(args []string) []string {
 	if len(args) < 1 || 2 < len(args){
 		return []string{"Usage: " + commandHelpMap["kick"]}
+	}
+
+	if !server.IsRunning() {
+		return []string{"Server not currently running."}
 	}
 
 	var reply string
@@ -298,6 +310,10 @@ func kickCmd(args []string) []string {
 
 var listRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (Connected players: .*)`)
 func listCmd(args []string) []string {
+	if !server.IsRunning() {
+		return []string{"Server not currently running."}
+	}
+
 	server.In <- "list"
 
 	for line := range commandResponse {
@@ -398,6 +414,10 @@ func stopCmd(args []string) []string {
 	var delay int64
 	var msg string
 
+	if !server.IsRunning() {
+		return []string{"Server not currently running."}
+	}
+
 	if len(args) == 0 {
 		delay = DefaultStopDelay
 		msg = fmt.Sprintf("Stop command issued, going down in %d seconds.", delay / 1e9) 
@@ -441,6 +461,10 @@ func tpCmd(args []string) []string {
 		return []string{"Usage: " + commandHelpMap["tp"]}
 	}
 
+	if !server.IsRunning() {
+		return []string{"Server not currently running."}
+	}
+
 	server.In <- fmt.Sprintf("tp %s %s", args[0], args[1])
 
 	for line := range commandResponse {
@@ -472,6 +496,10 @@ var whitelistRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] CONSOLE: (Remov
 func whitelistCmd(args []string) (reply []string) {
 	if len(args) == 0 {
 		return []string{"Usage: " + commandHelpMap["whitelist"]}
+	}
+
+	if !server.IsRunning() {
+		return []string{"Server not currently running."}
 	}
 	
 	switch args[0] {
