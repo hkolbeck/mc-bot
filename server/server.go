@@ -82,6 +82,10 @@ func NewServer(command string, args []string, dir string, infoLog, errLog *log.L
 	return server, nil
 }
 
+func (self *Server) IsRunning() bool {
+	return self.running
+}
+
 func (self *Server) Start() os.Error {
 	if self.running {
 		return os.NewError("Server already started.")
