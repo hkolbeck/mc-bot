@@ -31,11 +31,13 @@ type Config struct {
 
 	//Map updater
 	MapUpdateCommand cmd
+	MapTempWorldDir string
 	MapUpdateInterval int64
 
 	//MC Server config
 	MCServerCommand cmd
 	MCServerDir string
+	MCWorldDir string
 
 	//Derived values:
 	defaultAccess map[string]bool

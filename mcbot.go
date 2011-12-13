@@ -13,6 +13,7 @@ import (
 	"log"
 	"flag"
 	"fmt"
+	"exec"
 )
 
 var (
@@ -59,3 +60,27 @@ func main() {
 	select {}
 }
 
+func copyWorld(worlddir, target string) os.Error {
+	var cmd string
+	var args []string
+	var err os.Error
+
+	switch config.HostOS {
+	case "linux":
+		cmd, err = exec.LookPath("cp")
+		if err != nil {
+			return os.NewError("Failed to find copy program (cp)")
+		}
+		args = []string{"-p", "-r", "-f", worlddir, target}
+	case "windows":
+		cmd, err = exec.LookPath("copy")
+		if err != nil {
+			return os.NewError("Failed to find copy program (copy)")
+		}
+		//This will do braindead things depending on wether dir exists
+		args = []string{"/Y", worlddir, target} 
+	}
+
+	command := exec.Command(cmd, args...)
+	return command.Run()
+}

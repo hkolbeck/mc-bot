@@ -6,6 +6,7 @@ import (
 	irc "cbeck/ircbot"
 	"fmt"
 	"io/ioutil"
+	"bufio"
 	"regexp"
 	"exec"
 	"net"
@@ -24,6 +25,7 @@ const (
 	DefaultStopDelay = 5e9
 	notImplemented = "This command is not yet implemented"
 )
+
 
 var commandMap map[string]commandFunc = 
 	map[string]commandFunc {
@@ -325,8 +327,85 @@ func listCmd(args []string) []string {
 	return nil 
 }
 
+
+
+var (
+	mapgenRunning bool = false
+	lastMapgenOutput string = ""
+	)
+
 func mapgenCmd(args []string) []string {
-	return []string{notImplemented} 
+	if mapgenRunning {
+		return []string{"MapGen already running, last output: " + lastMapgenOutput}
+	}
+
+	if server.IsRunning() {
+		server.In <- "save-all"
+		server.In <- "save-off"
+		for line := range commandResponse {
+			if strings.Contains(line, "CONSOLE: Disabling level saving..") {
+				break
+			}
+		}		
+	}
+
+	copyWorld(config.MCWorldDir, config.MapTempWorldDir)
+	server.In <- "save-on"
+	mapgenRunning = true
+
+	command := exec.Command(config.MapUpdateCommand.Command, config.MapUpdateCommand.Args...)
+	
+	//These two lambdas will constantly be racing for lastMapgenOutput, and that's ok
+	go func() {
+		out, _ := command.StdoutPipe()	
+		outBuf := bufio.NewReader(out)
+		for {
+			line, _, err := outBuf.ReadLine()
+			if err != nil {
+				return
+			} else if len(line) < 1 {
+				continue
+			}
+			lastMapgenOutput = string(line)
+		}
+	}()
+	go func() {
+		err, _ := command.StderrPipe()
+		errBuf := bufio.NewReader(err)
+
+		for {
+			line, _, err := errBuf.ReadLine()
+			if err != nil {
+				return
+			} else if len(line) < 1 {
+				continue
+			}
+			lastMapgenOutput = string(line)
+		}
+	}()
+
+	go func() {
+		err := command.Run()
+
+		if err != nil {
+			bot.Send(&irc.Message{
+			Command: "PRIVMSG",
+			Args: []string{config.IrcChan},
+			Trailing: "MapGen exited uncleanly: " + err.String(),
+			})
+		} else {
+			bot.Send(&irc.Message{
+			Command: "PRIVMSG",
+			Args: []string{config.IrcChan},
+			Trailing: "MapGen Complete",
+			})		
+		}
+
+		mapgenRunning = false
+		lastMapgenOutput = ""
+	}()
+
+	return []string{"MapGen started"} 
 }
 
 func restartCmd(args []string) []string {
