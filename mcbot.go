@@ -67,11 +67,18 @@ func copyWorld(worlddir, target string) os.Error {
 
 	switch config.HostOS {
 	case "linux":
-		cmd, err = exec.LookPath("cp")
-		if err != nil {
-			return os.NewError("Failed to find copy program (cp)")
+		cmd, err = exec.LookPath("rsync")
+		if err == nil {
+			args = []string{"-r", worlddir + "/", target}
+		} else { 
+			cmd, err = exec.LookPath("cp")
+			if err == nil {
+				args = []string{"-r", "-p", "-u", worlddir, target}
+			} else {
+				return os.NewError("Failed to find a suitable copy program (rsync, cp)")
+			}
 		}
-		args = []string{"-p", "-r", "-f", worlddir, target}
+		
 	case "windows":
 		cmd, err = exec.LookPath("copy")
 		if err != nil {

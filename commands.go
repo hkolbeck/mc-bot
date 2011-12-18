@@ -74,7 +74,7 @@ var commandHelpMap map[string]string =
 
 	"list" : "list: List all players currently connected to the server.",
 
-	"mapgen" : "mapgen: Force a run of the map generator.  If a mapgen is currently running, get an" +
+	"mapgen" : "mapgen [stop]: Force a run of the map generator.  If a mapgen is currently running, get an" +
 		" estimate of its progress.",
 
 	"restart" : fmt.Sprintf("restart [delay] [message]: Restart the server after issuing [message] and " +
@@ -185,10 +185,10 @@ func helpCmd(args []string) []string {
 	var ok bool
 
 	if len(args) == 0 {
-		reply = "Available commands: ?"
 		for k := range commandHelpMap {
 			reply += ", " + k
 		}
+		reply = "Available commands: " + reply[2:]
 	} else if len(args) == 1 {
 		reply, ok = commandHelpMap[args[0]]
 		if !ok {
@@ -366,6 +366,7 @@ func mapgenCmd(args []string) []string {
 			} else if len(line) < 1 {
 				continue
 			}
+			fmt.Printf("%s\n", line)
 			lastMapgenOutput = string(line)
 		}
 	}()
@@ -380,6 +381,7 @@ func mapgenCmd(args []string) []string {
 			} else if len(line) < 1 {
 				continue
 			}
+			fmt.Printf("%s\n", line)
 			lastMapgenOutput = string(line)
 		}
 	}()
@@ -485,6 +487,9 @@ func stateCmd(args []string) (reply []string) {
 	reply = append(reply, fmt.Sprintf("Errors: %d", serverErrors))
 	reply = append(reply, fmt.Sprintf("Severe Errors: %d", severeServerErrors))
 	reply = append(reply, serverVersion)
+	if mapgenRunning {
+		reply = append(reply, "MapGen running: " + lastMapgenOutput)
+	}
 
 	return 
 }
