@@ -332,6 +332,7 @@ func listCmd(args []string) []string {
 var (
 	mapgenRunning bool = false
 	lastMapgenOutput string = ""
+	lastMapgenRun *time.Time
 	)
 
 func mapgenCmd(args []string) []string {
@@ -352,7 +353,8 @@ func mapgenCmd(args []string) []string {
 	copyWorld(config.MCWorldDir, config.MapTempWorldDir)
 	server.In <- "save-on"
 	mapgenRunning = true
-
+	lastMapgenRun = time.LocalTime()
+	
 	command := exec.Command(config.MapUpdateCommand.Command, config.MapUpdateCommand.Args...)
 	
 	//These two lambdas will constantly be racing for lastMapgenOutput, and that's ok
@@ -396,10 +398,13 @@ func mapgenCmd(args []string) []string {
 			Trailing: "MapGen exited uncleanly: " + err.String(),
 			})
 		} else {
+
+			dur := time.Seconds() - lastMapgenRun.Seconds()
+
 			bot.Send(&irc.Message{
 			Command: "PRIVMSG",
 			Args: []string{config.IrcChan},
-			Trailing: "MapGen Complete",
+			Trailing: fmt.Sprintf("MapGen Complete in %02d:%02d:%02d", dur / 3600, (dur % 3600) / 60, dur % 60),
 			})		
 		}
 
@@ -487,8 +492,13 @@ func stateCmd(args []string) (reply []string) {
 	reply = append(reply, fmt.Sprintf("Errors: %d", serverErrors))
 	reply = append(reply, fmt.Sprintf("Severe Errors: %d", severeServerErrors))
 	reply = append(reply, serverVersion)
+	
 	if mapgenRunning {
-		reply = append(reply, "MapGen running: " + lastMapgenOutput)
+		reply = append(reply, "MapGen currently running: " + lastMapgenOutput)
+	} else if lastMapgenRun != nil {
+		reply = append(reply, "MapGen last run  " + lastMapgenRun.Format("Mon Jan _2 15:04"))
+	} else {
+		reply = append(reply, "No MapGen run since last bot restart.")
 	}
 
 	return 
