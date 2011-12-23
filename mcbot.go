@@ -69,7 +69,7 @@ func copyWorld(worlddir, target string) os.Error {
 	case "linux":
 		cmd, err = exec.LookPath("rsync")
 		if err == nil {
-			args = []string{"-r", worlddir + "/", target}
+			args = []string{"-a", worlddir + "/", target}
 		} else { 
 			cmd, err = exec.LookPath("cp")
 			if err == nil {
