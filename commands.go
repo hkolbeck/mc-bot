@@ -28,7 +28,6 @@ const (
 	notImplemented = "This command is not yet implemented"
 )
 
-
 var commandMap map[string]commandFunc = 
 	map[string]commandFunc {
 	"?" : helpCmd,
@@ -203,7 +202,7 @@ func allowed(sender, op string, source int) bool {
 
 
 
-func helpCmd(args []string) []string {
+func helpCmd(args []string, timeout *bool) []string {
 	var reply string
 	var ok bool
 
@@ -224,11 +223,11 @@ func helpCmd(args []string) []string {
 	return []string{reply}
 }
 
-func backupCmd(args []string) []string {
+func backupCmd(args []string, timeout *bool) []string {
 	return []string{notImplemented} 
 }
 
-func banCmd(args []string) []string {
+func banCmd(args []string, timeout *bool) []string {
 	if len(args) == 0 || len(args) > 2 {
 		return []string{"Usage: " + commandHelpMap["ban"]}
 	}
@@ -263,7 +262,7 @@ func banCmd(args []string) []string {
 	return []string{args[0] + " has been banned" + isTemp}
 }
 
-func pardonCmd(args []string) []string {
+func pardonCmd(args []string, timeout *bool) []string {
 	if len(args) != 1 {
 		return []string{"Usage: " + commandHelpMap["pardon"]}
 	}
@@ -281,13 +280,13 @@ func pardonCmd(args []string) []string {
 	return []string{args[0] + " has been pardoned."}
 } 
 
-func giveCmd(args []string) []string {
+func giveCmd(args []string, timeout *bool) []string {
 	return []string{notImplemented} 
 }
 
 var kickSuccessRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] CONSOLE: Kicking ([a-zA-Z0-9\-]+)`)
 var kickFailureRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] Can't find user ([a-zA-Z0-9\-]+). No kick.`)
-func kickCmd(args []string) []string {
+func kickCmd(args []string, timeout *bool) []string {
 	if len(args) < 1 || 2 < len(args){
 		return []string{"Usage: " + commandHelpMap["kick"]}
 	}
@@ -334,7 +333,7 @@ func kickCmd(args []string) []string {
 
 
 var listRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (Connected players: .*)`)
-func listCmd(args []string) []string {
+func listCmd(args []string, timeout *bool) []string {
 	if !server.IsRunning() {
 		return []string{"Server not currently running."}
 	}
@@ -358,7 +357,7 @@ var (
 	lastMapgenRun *time.Time
 	)
 
-func mapgenCmd(args []string) []string {
+func mapgenCmd(args []string, timeout *bool) []string {
 	if mapgenRunning {
 		return []string{"MapGen already running, last output: " + lastMapgenOutput}
 	}
@@ -438,18 +437,18 @@ func mapgenCmd(args []string) []string {
 	return []string{"MapGen started"} 
 }
 
-func restartCmd(args []string) []string {
-	stopCmd(args)
-	return startCmd(nil)
+func restartCmd(args []string, timeout *bool) []string {
+	stopCmd(args, nil)
+	return startCmd(nil, nil)
 }
 
-func sourceCmd(args []string) []string {
+func sourceCmd(args []string, timeout *bool) []string {
 	return []string{"MCBot was written by Cory 'cbeck' Kolbeck.  Its source and license" +
 			" information can be found at https://github.com/ckolbeck/mc-bot"}
 }
 
 var versionRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] Starting (minecraft server version .*)`)
-func startCmd(args []string) []string {
+func startCmd(args []string, timeout *bool) []string {
 	if len(args) != 0{
 		return []string{"Usage: " + commandHelpMap["start"]}
 	}
@@ -468,7 +467,7 @@ func startCmd(args []string) []string {
 	return []string{"Server started."}
 }
 
-func stateCmd(args []string) (reply []string) {
+func stateCmd(args []string, timeout *bool) (reply []string) {
 	var lines []string
 	if len(args) != 0{
 		return []string{"Usage: " + commandHelpMap["state"]}
@@ -527,7 +526,7 @@ func stateCmd(args []string) (reply []string) {
 	return 
 }
 
-func stopCmd(args []string) []string {
+func stopCmd(args []string, timeout *bool) []string {
 	var delay int64
 	var msg string
 
@@ -566,7 +565,7 @@ func stopCmd(args []string) []string {
 
 var tpRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (CONSOLE:)? (Teleporting.*|` +
 	`Can't find user.*|.*are in different dimensions\. No tp\.)`)
-func tpCmd(args []string) []string {
+func tpCmd(args []string, timeout *bool) []string {
 	if len(args) != 2 {
 		return []string{"Usage: " + commandHelpMap["tp"]}
 	}
@@ -587,23 +586,16 @@ func tpCmd(args []string) []string {
 	return nil
 }
 
-func versionCmd(args []string) []string {
+func versionCmd(args []string, timeout *bool) []string {
 	if serverVersion != "" {
 		return []string{serverVersion}
 	}
 	return []string{"Server not running or version unknown."}
 }
 
-/*
-whitelist remove cbeck
- 2011-11-26 01:51:38 [INFO] CONSOLE: Removed cbeck from white-list
-whitelist add cbeck
- 2011-11-26 01:52:03 [INFO] CONSOLE: Added cbeck to white-list
- --
-[INFO] White-listed players:
-*/
-var whitelistRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] CONSOLE: (Removed .+ from white-list|Added .+ to white-list)`)
-func whitelistCmd(args []string) (reply []string) {
+var whitelistRegex *regexp.Regexp = 
+	regexp.MustCompile(`\[INFO\] CONSOLE: (Removed .+ from white-list|Added .+ to white-list)`)
+func whitelistCmd(args []string, timeout *bool) (reply []string) {
 	if len(args) == 0 {
 		return []string{"Usage: " + commandHelpMap["whitelist"]}
 	}
