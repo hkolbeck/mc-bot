@@ -14,15 +14,17 @@ import (
 	"os"
 	)
 
-type commandFunc func([]string) []string
+type commandFunc func([]string, *bool) []string
 type command struct {
 	raw string
 	sender string
+	channel string
 	source int
 }
 
 const (
 	DefaultStopDelay = 5e9
+	CommandTimeout = 60e9
 	notImplemented = "This command is not yet implemented"
 )
 
@@ -99,7 +101,13 @@ var commandHelpMap map[string]string =
 
 
 func directedIRC(cmd string, m *irc.Message) string {
-	commands <- &command{cmd, m.GetSender(), SOURCE_IRC}
+	
+	if m.Args[0] == config.Nick {
+		commands <- &command{cmd, m.GetSender(), m.GetSender(), SOURCE_IRC}
+	} else {
+		commands <- &command{cmd, m.GetSender(), m.Args[0], SOURCE_IRC}
+	}
+
 	return ""
 }
 
@@ -129,7 +137,22 @@ func commandDispatch() {
 				default: break Flush
 				}
 			}
-			reply = f(split[1:])
+
+			returned := make(chan int)
+			timeout := false
+			
+			go func() {
+				reply = f(split[1:], &timeout)
+				returned <- 1
+			}()
+
+			select {
+			case <-time.After(CommandTimeout):
+				timeout = true
+				<-returned
+				reply = []string{"Command timed out."}
+			case <-returned:
+			}
 		}
 		
 		switch cmd.source {
@@ -141,7 +164,7 @@ func commandDispatch() {
 			for _, s := range reply {
 				bot.Send(&irc.Message{
 				Command : "PRIVMSG",
-				Args : []string{config.IrcChan},
+				Args : []string{cmd.channel},
 				Trailing : s,
 				})		
 			}
@@ -159,7 +182,7 @@ func allowed(sender, op string, source int) bool {
 	case SOURCE_MC:
 		sender = "mc:" + sender
 	case SOURCE_IRC:
-	
+		
 		//TODO: Make sure irc nick is registered
 
 		sender = "irc:" + sender
@@ -540,16 +563,9 @@ func stopCmd(args []string) []string {
 
 	return []string{"Server stopped."}
 }
-/*
- tp cbeck foo
- 2011-11-26 01:27:45 [INFO] Can't find user foo. No tp.
- tp foo cbeck
- 2011-11-26 01:27:50 [INFO] Can't find user foo. No tp.
- tp cbeck akhiros
- 2011-11-26 01:28:30 [INFO] CONSOLE: Teleporting cbeck to akhiros.
- [INFO] User cbeck and akhiros are in different dimensions. No tp.
- */
-var tpRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (CONSOLE:)? (Teleporting.*|Can't find user.*)`)
+
+var tpRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (CONSOLE:)? (Teleporting.*|` +
+	`Can't find user.*|.*are in different dimensions\. No tp\.)`)
 func tpCmd(args []string) []string {
 	if len(args) != 2 {
 		return []string{"Usage: " + commandHelpMap["tp"]}

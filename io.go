@@ -81,7 +81,7 @@ func teeServerOutput() {
 			
 			if matches[2][0] == bot.Attention { //Command issued from inside server
 				senderMatches := senderRegex.FindStringSubmatch(line)
-				commands <- &command{matches[2][1:], senderMatches[2], SOURCE_MC}
+				commands <- &command{matches[2][1:], senderMatches[2], "", SOURCE_MC}
 				logInfo.Printf("%s sent command '%s' from in-server", senderMatches[2], matches[2][1:])
 			} else { //Chat
 				bot.Send(&irc.Message{
