@@ -1,8 +1,8 @@
 package main
 
 import (
-	"strings"
 	"strconv"
+	"strings"
 	irc "cbeck/ircbot"
 	"fmt"
 	"io/ioutil"
@@ -200,7 +200,7 @@ func allowed(sender, op string, source int) bool {
 	return false
 }
 
-
+func waitForRegex() []string
 
 func helpCmd(args []string, timeout *bool) []string {
 	var reply string
