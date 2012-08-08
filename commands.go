@@ -200,7 +200,7 @@ func allowed(sender, op string, source int) bool {
 	return false
 }
 
-func waitForRegex() []string
+//func waitForRegex() []string
 
 func helpCmd(args []string, timeout *bool) []string {
 	var reply string
@@ -284,8 +284,8 @@ func giveCmd(args []string, timeout *bool) []string {
 	return []string{notImplemented} 
 }
 
-var kickSuccessRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] CONSOLE: Kicking ([a-zA-Z0-9\-]+)`)
-var kickFailureRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] Can't find user ([a-zA-Z0-9\-]+). No kick.`)
+var kickSuccessRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] Kicked ([a-zA-Z0-9\-]+) from the game`)
+var kickFailureRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] That player cannot be found`)
 func kickCmd(args []string, timeout *bool) []string {
 	if len(args) < 1 || 2 < len(args){
 		return []string{"Usage: " + commandHelpMap["kick"]}
@@ -313,10 +313,8 @@ func kickCmd(args []string, timeout *bool) []string {
 				reply = args[0] + " was kicked"
 				break
 			}
-		} else if match = kickFailureRegex.FindStringSubmatch(line); match != nil {
-			if match[1] == args[0] {
-				return []string{"Kicking " + args[0] + " failed."}
-			}
+		} else if kickFailureRegex.MatchString(line) {
+			return []string{"Kick failed, couldn't find  " + args[0] + "."}
 		}
 	}
 
@@ -332,7 +330,7 @@ func kickCmd(args []string, timeout *bool) []string {
 }
 
 
-var listRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (Connected players: .*)`)
+var listRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (There are \d+/\d+ players online:)`)
 func listCmd(args []string, timeout *bool) []string {
 	if !server.IsRunning() {
 		return []string{"Server not currently running."}
@@ -342,7 +340,8 @@ func listCmd(args []string, timeout *bool) []string {
 
 	for line := range commandResponse {
 		if match := listRegex.FindStringSubmatch(line); match != nil {
-			return match[1:]
+			players := <-commandResponse //The next line should have the actual list
+			return append(match[1:], strings.SplitAfterN(players, "[INFO] " 2)[1:])
 		}
 	}
 
@@ -366,7 +365,7 @@ func mapgenCmd(args []string, timeout *bool) []string {
 		server.In <- "save-all"
 		server.In <- "save-off"
 		for line := range commandResponse {
-			if strings.Contains(line, "CONSOLE: Disabling level saving..") {
+			if strings.Contains(line, "[INFO] Turned off world auto-saving") {
 				break
 			}
 		}		
@@ -593,8 +592,9 @@ func versionCmd(args []string, timeout *bool) []string {
 	return []string{"Server not running or version unknown."}
 }
 
-var whitelistRegex *regexp.Regexp = 
-	regexp.MustCompile(`\[INFO\] CONSOLE: (Removed .+ from white-list|Added .+ to white-list)`)
+var whitelistRegexAddRemove *regexp.Regexp = 
+	regexp.MustCompile(`\[INFO\] CONSOLE: (Removed .+ from the whitelist|Added .+ to the whitelist)`)
+var whitelistListRegex *regexp.Regexp = regexp.MustCompile(`There are \d+ (out of \d+ seen) whitelisted players:`)
 func whitelistCmd(args []string, timeout *bool) (reply []string) {
 	if len(args) == 0 {
 		return []string{"Usage: " + commandHelpMap["whitelist"]}
@@ -613,7 +613,7 @@ func whitelistCmd(args []string, timeout *bool) (reply []string) {
 		for _, name := range args[1:] {
 			server.In <- fmt.Sprintf("whitelist %s %s", args[0], name)
 			for line := range commandResponse {
-				if match := whitelistRegex.FindStringSubmatch(line); match != nil {
+				if match := whitelistAddRemoveRegex.FindStringSubmatch(line); match != nil {
 					reply = append(reply, match[1])
 					break
 				}
@@ -623,9 +623,10 @@ func whitelistCmd(args []string, timeout *bool) (reply []string) {
 	case "list":
 		server.In <- "whitelist list"
 		for line := range commandResponse {
-			if index := strings.Index(line, "White-listed players:"); index != -1 {
-				reply = append(reply, line[index:])
-				break
+			if match := whitelistListRegex.FindStringSubmatch(line); match != nil {
+				players := <-commandResponse //The next line should have the actual list
+				return append(match[1:], strings.SplitAfterN(players, "[INFO] , " 2)[1:])
+
 			}	
 		}
 	default:
