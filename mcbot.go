@@ -7,26 +7,26 @@
 package main
 
 import (
-	"cbeck/ircbot"
-	"cbeck/mcserver"
-	"os"
-	"log"
+	"errors"
 	"flag"
 	"fmt"
-	"exec"
+	"github.com/ckolbeck/ircbot"
+	"github.com/ckolbeck/mcserver"
+	"log"
+	"os"
+	"os/exec"
 )
 
 var (
-	bot *ircbot.Bot
-	server *mcserver.Server
-	config *Config
-	logErr *log.Logger = log.New(os.Stderr, "[E] ", log.Ldate | log.Ltime)
-	logInfo *log.Logger = log.New(os.Stdout, "[I] ", log.Ldate | log.Ltime)
+	bot     *ircbot.Bot
+	server  *mcserver.Server
+	config  *Config
+	logErr  *log.Logger = log.New(os.Stderr, "[E] ", log.Ldate|log.Ltime)
+	logInfo *log.Logger = log.New(os.Stdout, "[I] ", log.Ldate|log.Ltime)
 )
 
-
 func main() {
-	var err os.Error
+	var err error
 	defer func() {
 		if x := recover(); x != nil {
 			fmt.Fprintf(os.Stderr, "Fatal error: %s\nExiting.", x)
@@ -40,9 +40,9 @@ func main() {
 	if config, err = ReadConfig(*confFile); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 	}
-	
+
 	if bot, err = ircbot.NewBot(config.Nick, config.Pass, config.IrcDomain, config.IrcServer, config.IrcPort,
-		config.SSL, config.AttnChar[0]);  err != nil {
+		config.SSL, config.AttnChar[0]); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 	}
 
@@ -60,32 +60,32 @@ func main() {
 	select {}
 }
 
-func copyWorld(worlddir, target string) os.Error {
+func copyWorld(worlddir, target string) error {
 	var cmd string
 	var args []string
-	var err os.Error
+	var err error
 
 	switch config.HostOS {
 	case "linux":
 		cmd, err = exec.LookPath("rsync")
 		if err == nil {
 			args = []string{"-a", worlddir + "/", target}
-		} else { 
+		} else {
 			cmd, err = exec.LookPath("cp")
 			if err == nil {
 				args = []string{"-r", "-p", "-u", worlddir, target}
 			} else {
-				return os.NewError("Failed to find a suitable copy program (rsync, cp)")
+				return errors.New("Failed to find a suitable copy program (rsync, cp)")
 			}
 		}
-		
+
 	case "windows":
 		cmd, err = exec.LookPath("copy")
 		if err != nil {
-			return os.NewError("Failed to find copy program (copy)")
+			return errors.New("Failed to find copy program (copy)")
 		}
 		//This will do braindead things depending on wether dir exists
-		args = []string{"/Y", worlddir, target} 
+		args = []string{"/Y", worlddir, target}
 	}
 
 	command := exec.Command(cmd, args...)

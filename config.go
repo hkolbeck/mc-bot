@@ -1,49 +1,49 @@
 package main
 
 import (
+	"encoding/json"
 	"io/ioutil"
-	"json"
 	"os"
-	)
+)
 
 type Config struct {
 	HostOS string
 
 	//IRC stuff
-	Nick string
-	Pass string
-	AttnChar string
-	IrcServer string
-	IrcChan string
+	Nick       string
+	Pass       string
+	AttnChar   string
+	IrcServer  string
+	IrcChan    string
 	IrcChanKey string
-	IrcDomain string
-	IrcPort int
-	SSL bool
+	IrcDomain  string
+	IrcPort    int
+	SSL        bool
 
 	//Command access levels
 	DefaultAccess []string
-	AccessLevels map[string]AccessLevel
-	Ignore []string
+	AccessLevels  map[string]AccessLevel
+	Ignore        []string
 
 	//Backup related
-	BackupCommand cmd
+	BackupCommand  cmd
 	BackupInterval int64
 
 	//Map updater
-	MapUpdateCommand cmd
-	MapTempWorldDir string
+	MapUpdateCommand  cmd
+	MapTempWorldDir   string
 	MapUpdateInterval int64
 
 	//MC Server config
 	MCServerCommand cmd
-	MCServerDir string
-	MCWorldDir string
+	MCServerDir     string
+	MCWorldDir      string
 
 	//Derived values:
-	defaultAccess map[string]bool
-	accessLevels map[string]map[string]bool
+	defaultAccess      map[string]bool
+	accessLevels       map[string]map[string]bool
 	accessLevelMembers map[string][]string
-	ignore map[string]bool
+	ignore             map[string]bool
 
 	//The filename this config was pulled from
 	source string
@@ -56,10 +56,10 @@ type AccessLevel struct {
 
 type cmd struct {
 	Command string
-	Args []string
+	Args    []string
 }
 
-func ReadConfig(confFile string) (*Config, os.Error) {
+func ReadConfig(confFile string) (*Config, error) {
 	raw, err := ioutil.ReadFile(confFile)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func ReadConfig(confFile string) (*Config, os.Error) {
 	return conf, nil
 }
 
-func (c *Config) Reparse() os.Error {
+func (c *Config) Reparse() error {
 	newConf, err := ReadConfig(c.source)
 	if err != nil {
 		return err
@@ -92,12 +92,12 @@ func (c *Config) Reparse() os.Error {
 	return nil
 }
 
-func (c *Config) WriteConfig(confFile string) os.Error {
+func (c *Config) WriteConfig(confFile string) error {
 	tmp, err := ioutil.TempFile("", "mcbot-")
 	if err != nil {
 		return err
 	}
-	
+
 	raw, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
@@ -141,8 +141,7 @@ func mungeConfig(conf *Config) {
 	}
 }
 
-
-func sanityCheck(c *Config) os.Error {
+func sanityCheck(c *Config) error {
 	return nil
 }
 

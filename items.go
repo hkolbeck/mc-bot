@@ -1,14 +1,13 @@
 package main
 
 import (
-	"json"
-	"os"
+	"encoding/json"
 	"io/ioutil"
 )
 
 var items map[string]int = make(map[string]int)
 
-func parseItems(file string) os.Error {
+func parseItems(file string) error {
 	f, err := ioutil.ReadFile(file)
 	if err != nil {
 		return err
@@ -22,6 +21,6 @@ func parseItems(file string) os.Error {
 	}
 
 	items = temp
-	
+
 	return nil
 }

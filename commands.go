@@ -1,106 +1,102 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	irc "github.com/ckolbeck/ircbot"
+	"io/ioutil"
+	"net"
+	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
-	irc "cbeck/ircbot"
-	"fmt"
-	"io/ioutil"
-	"bufio"
-	"regexp"
-	"exec"
-	"net"
 	"time"
-	"os"
-	)
+)
 
 type commandFunc func([]string, *bool) []string
 type command struct {
-	raw string
-	sender string
+	raw     string
+	sender  string
 	channel string
-	source int
+	source  int
 }
 
 const (
 	DefaultStopDelay = 5e9
-	CommandTimeout = 60e9
-	notImplemented = "This command is not yet implemented"
+	CommandTimeout   = 60e9
+	notImplemented   = "This command is not yet implemented"
 )
 
-var commandMap map[string]commandFunc = 
-	map[string]commandFunc {
-	"?" : helpCmd,
-	"backup" : backupCmd,
-	"ban" : banCmd,
-	"pardon" : pardonCmd,
-	"give" : giveCmd,
-	"help" : helpCmd,
-	"kick" : kickCmd,
-	"list" : listCmd,
-	"mapgen" : mapgenCmd,
-	"restart" : restartCmd,
-	"source" : sourceCmd,
-	"start" : startCmd,
-	"state" : stateCmd,
-	"status" : stateCmd,
-	"stop" : stopCmd,
-	"tp" : tpCmd,
-	"version" : versionCmd,
-	"whitelist" : whitelistCmd,
+var commandMap map[string]commandFunc = map[string]commandFunc{
+	"?":         helpCmd,
+	"backup":    backupCmd,
+	"ban":       banCmd,
+	"pardon":    pardonCmd,
+	"give":      giveCmd,
+	"help":      helpCmd,
+	"kick":      kickCmd,
+	"list":      listCmd,
+	"mapgen":    mapgenCmd,
+	"restart":   restartCmd,
+	"source":    sourceCmd,
+	"start":     startCmd,
+	"state":     stateCmd,
+	"status":    stateCmd,
+	"stop":      stopCmd,
+	"tp":        tpCmd,
+	"version":   versionCmd,
+	"whitelist": whitelistCmd,
 }
 
-var commandHelpMap map[string]string = 
-	map[string]string {
-	"?" : "? [command]: If [command] is present, get usage information on that command, otherwise" +
+var commandHelpMap map[string]string = map[string]string{
+	"?": "? [command]: If [command] is present, get usage information on that command, otherwise" +
 		" display a list of available commands",
 
-	"backup" : "backup [name]: Force the creation of a persistant backup.  If [name] is present," + 
+	"backup": "backup [name]: Force the creation of a persistant backup.  If [name] is present," +
 		" the file will be named 'name.backup', otherwise it will be '<RFC3339 time>.backup'.",
 
-	"ban" : "ban <name or ip> [duration]: Ban a player by ip or name.  If [duration] is present, " +
+	"ban": "ban <name or ip> [duration]: Ban a player by ip or name.  If [duration] is present, " +
 		"the ban will be lifted after than many minutes. " +
 		"If no arguments are passed, get a list of currently banned players and IPs.",
 
-	"pardon" : "pardon <name or ip>: Remove a player from the banned list by name or IP.",
+	"pardon": "pardon <name or ip>: Remove a player from the banned list by name or IP.",
 
-	"give" : "give <player> <item id or name> [num]: Spawn <item> at <player>'s location.  If [num] " +
+	"give": "give <player> <item id or name> [num]: Spawn <item> at <player>'s location.  If [num] " +
 		"is present, spawn that many of <item>.  Some items may not be spawnable by name.",
 
-	"help" :  "help [command]: If [command] is present, get usage information on that command, otherwise" +
+	"help": "help [command]: If [command] is present, get usage information on that command, otherwise" +
 		" display a list of available commands",
 
-	"kick" : "kick <player> [duration]: Kick <player> off the server.  Player will be able to rejoin" + 
+	"kick": "kick <player> [duration]: Kick <player> off the server.  Player will be able to rejoin" +
 		" immediatly unless [duration] is present, in which case they will be banned for that many minutes.",
 
-	"list" : "list: List all players currently connected to the server.",
+	"list": "list: List all players currently connected to the server.",
 
-	"mapgen" : "mapgen [stop]: Force a run of the map generator.  If a mapgen is currently running, get an" +
+	"mapgen": "mapgen [stop]: Force a run of the map generator.  If a mapgen is currently running, get an" +
 		" estimate of its progress.",
 
-	"restart" : fmt.Sprintf("restart [delay] [message]: Restart the server after issuing [message] and " +
-		"waiting [delay] seconds.  If [delay] is not present, wait %d seconds.", 
-		DefaultStopDelay / int64(1e9)),
+	"restart": fmt.Sprintf("restart [delay] [message]: Restart the server after issuing [message] and "+
+		"waiting [delay] seconds.  If [delay] is not present, wait %d seconds.",
+		DefaultStopDelay/int64(1e9)),
 
-	"source" : "source: Get information on this bot's source code.",
+	"source": "source: Get information on this bot's source code.",
 
-	"start" : "start: Start the Minecraft server if it's stopped.",
+	"start": "start: Start the Minecraft server if it's stopped.",
 
-	"state" : "state: Get information on the current server process.",
+	"state": "state: Get information on the current server process.",
 
-	"stop" : fmt.Sprintf("stop [delay] [message]: Stop the server after issuing [message] and waiting " +
-		"[delay] seconds.  If [delay] is not present, wait %d seconds.", DefaultStopDelay / int64(1e9)),
+	"stop": fmt.Sprintf("stop [delay] [message]: Stop the server after issuing [message] and waiting "+
+		"[delay] seconds.  If [delay] is not present, wait %d seconds.", DefaultStopDelay/int64(1e9)),
 
-	"tp" : "tp <player> <destination player>: Teleport <player> to <destination player>'s location.",
+	"tp": "tp <player> <destination player>: Teleport <player> to <destination player>'s location.",
 
-	"version" : "version: Get the version number of the currently running minecraft server.",
+	"version": "version: Get the version number of the currently running minecraft server.",
 
-	"whitelist" : "whitelist <add <name>|remove <name>|list>: Manipulate or examine the server's whitelist.",
+	"whitelist": "whitelist <add <name>|remove <name>|list>: Manipulate or examine the server's whitelist.",
 }
 
-
 func directedIRC(cmd string, m *irc.Message) string {
-	
+
 	if m.Args[0] == config.Nick {
 		commands <- &command{cmd, m.GetSender(), m.GetSender(), SOURCE_IRC}
 	} else {
@@ -124,22 +120,24 @@ func commandDispatch() {
 		if !exists {
 			reply = []string{"Unknown command: " + split[0]}
 		} else if !allowed(cmd.sender, split[0], cmd.source) {
-			reply = []string{cmd.sender + " is not allowed to invoke '" + split[0] + 
-					"'. This incident will be reported."}
-		
+			reply = []string{cmd.sender + " is not allowed to invoke '" + split[0] +
+				"'. This incident will be reported."}
+
 			logInfo.Printf("%s attempted '%s'\n", cmd.sender, cmd.raw)
 		} else {
 			//Flush the server output queue first
-		Flush: for {
+		Flush:
+			for {
 				select {
-				case <-commandResponse: 
-				default: break Flush
+				case <-commandResponse:
+				default:
+					break Flush
 				}
 			}
 
 			returned := make(chan int)
 			timeout := false
-			
+
 			go func() {
 				reply = f(split[1:], &timeout)
 				returned <- 1
@@ -153,7 +151,7 @@ func commandDispatch() {
 			case <-returned:
 			}
 		}
-		
+
 		switch cmd.source {
 		case SOURCE_MC:
 			for _, s := range reply {
@@ -162,10 +160,10 @@ func commandDispatch() {
 		case SOURCE_IRC:
 			for _, s := range reply {
 				bot.Send(&irc.Message{
-				Command : "PRIVMSG",
-				Args : []string{cmd.channel},
-				Trailing : s,
-				})		
+					Command:  "PRIVMSG",
+					Args:     []string{cmd.channel},
+					Trailing: s,
+				})
 			}
 		}
 	}
@@ -181,12 +179,12 @@ func allowed(sender, op string, source int) bool {
 	case SOURCE_MC:
 		sender = "mc:" + sender
 	case SOURCE_IRC:
-		
+
 		//TODO: Make sure irc nick is registered
 
 		sender = "irc:" + sender
 	}
-	
+
 	//If user is marked as part of any groups
 	if levels, ok := config.accessLevelMembers[sender]; ok {
 		for _, l := range levels {
@@ -194,14 +192,13 @@ func allowed(sender, op string, source int) bool {
 			if exists, allowed := level[op]; exists && allowed {
 				return true
 			}
-		} 
+		}
 	}
 
 	return false
 }
 
 //func waitForRegex() []string
-
 func helpCmd(args []string, timeout *bool) []string {
 	var reply string
 	var ok bool
@@ -224,7 +221,7 @@ func helpCmd(args []string, timeout *bool) []string {
 }
 
 func backupCmd(args []string, timeout *bool) []string {
-	return []string{notImplemented} 
+	return []string{notImplemented}
 }
 
 func banCmd(args []string, timeout *bool) []string {
@@ -244,21 +241,21 @@ func banCmd(args []string, timeout *bool) []string {
 	}
 
 	if len(args) == 2 {
-		dur, err := strconv.Atoi64(args[1])
-		if err != nil || dur <= 0{
+		dur, err := strconv.ParseInt(args[1], 10, 64)
+		if err != nil || dur <= 0 {
 			return []string{"Could not parse " + args[1] + " as a positive integer."}
 		}
 		isTemp = fmt.Sprintf(" for %d minute(s).", dur)
 
 		go func() {
 			//dur will be in seconds, After() expects nanoseconds
-			<-(time.After(dur * 60e9)) 
+			<-(time.After(dur * 60e9))
 			server.In <- "pardon" + ext + " " + args[0]
 		}()
 	}
 
-	server.In <- "ban" + ext + " " + args[0] 
-	
+	server.In <- "ban" + ext + " " + args[0]
+
 	return []string{args[0] + " has been banned" + isTemp}
 }
 
@@ -278,16 +275,17 @@ func pardonCmd(args []string, timeout *bool) []string {
 	}
 
 	return []string{args[0] + " has been pardoned."}
-} 
+}
 
 func giveCmd(args []string, timeout *bool) []string {
-	return []string{notImplemented} 
+	return []string{notImplemented}
 }
 
 var kickSuccessRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] Kicked ([a-zA-Z0-9\-]+) from the game`)
 var kickFailureRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] That player cannot be found`)
+
 func kickCmd(args []string, timeout *bool) []string {
-	if len(args) < 1 || 2 < len(args){
+	if len(args) < 1 || 2 < len(args) {
 		return []string{"Usage: " + commandHelpMap["kick"]}
 	}
 
@@ -297,10 +295,10 @@ func kickCmd(args []string, timeout *bool) []string {
 
 	var reply string
 	var dur int64 = -1
-	var err os.Error
+	var err error
 
 	if len(args) == 2 {
-		if dur, err = strconv.Atoi64(args[1]); err != nil || dur <= 0{
+		if dur, err = strconv.ParseInt(args[1], 10, 64); err != nil || dur <= 0 {
 			return []string{"Couldn't parse " + args[1] + " as a positive integer."}
 		}
 	}
@@ -329,8 +327,8 @@ func kickCmd(args []string, timeout *bool) []string {
 	return []string{reply}
 }
 
-
 var listRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (There are \d+/\d+ players online:)`)
+
 func listCmd(args []string, timeout *bool) []string {
 	if !server.IsRunning() {
 		return []string{"Server not currently running."}
@@ -341,20 +339,18 @@ func listCmd(args []string, timeout *bool) []string {
 	for line := range commandResponse {
 		if match := listRegex.FindStringSubmatch(line); match != nil {
 			players := <-commandResponse //The next line should have the actual list
-			return append(match[1:], strings.SplitAfterN(players, "[INFO] " 2)[1:])
+			return append(match[1:], strings.SplitAfterN(players, "[INFO] ", 2)[1:])
 		}
 	}
 
-	return nil 
+	return nil
 }
 
-
-
 var (
-	mapgenRunning bool = false
+	mapgenRunning    bool   = false
 	lastMapgenOutput string = ""
-	lastMapgenRun *time.Time
-	)
+	lastMapgenRun    time.Time
+)
 
 func mapgenCmd(args []string, timeout *bool) []string {
 	if mapgenRunning {
@@ -368,19 +364,19 @@ func mapgenCmd(args []string, timeout *bool) []string {
 			if strings.Contains(line, "[INFO] Turned off world auto-saving") {
 				break
 			}
-		}		
+		}
 	}
 
 	copyWorld(config.MCWorldDir, config.MapTempWorldDir)
 	server.In <- "save-on"
 	mapgenRunning = true
-	lastMapgenRun = time.LocalTime()
-	
+	lastMapgenRun = time.Now()
+
 	command := exec.Command(config.MapUpdateCommand.Command, config.MapUpdateCommand.Args...)
-	
+
 	//These two lambdas will constantly be racing for lastMapgenOutput, and that's ok
 	go func() {
-		out, _ := command.StdoutPipe()	
+		out, _ := command.StdoutPipe()
 		outBuf := bufio.NewReader(out)
 		for {
 			line, _, err := outBuf.ReadLine()
@@ -414,26 +410,26 @@ func mapgenCmd(args []string, timeout *bool) []string {
 
 		if err != nil {
 			bot.Send(&irc.Message{
-			Command: "PRIVMSG",
-			Args: []string{config.IrcChan},
-			Trailing: "MapGen exited uncleanly: " + err.String(),
+				Command:  "PRIVMSG",
+				Args:     []string{config.IrcChan},
+				Trailing: "MapGen exited uncleanly: " + err.Error(),
 			})
 		} else {
 
-			dur := time.Seconds() - lastMapgenRun.Seconds()
+			dur := time.Now().Sub(lastMapgenRun.Unix())
 
 			bot.Send(&irc.Message{
-			Command: "PRIVMSG",
-			Args: []string{config.IrcChan},
-			Trailing: fmt.Sprintf("MapGen Complete in %02d:%02d:%02d", dur / 3600, (dur % 3600) / 60, dur % 60),
-			})		
+				Command:  "PRIVMSG",
+				Args:     []string{config.IrcChan},
+				Trailing: fmt.Sprintf("MapGen Complete in %02d:%02d:%02d", dur/3600, (dur%3600)/60, dur%60),
+			})
 		}
 
 		mapgenRunning = false
 		lastMapgenOutput = ""
 	}()
 
-	return []string{"MapGen started"} 
+	return []string{"MapGen started"}
 }
 
 func restartCmd(args []string, timeout *bool) []string {
@@ -443,17 +439,18 @@ func restartCmd(args []string, timeout *bool) []string {
 
 func sourceCmd(args []string, timeout *bool) []string {
 	return []string{"MCBot was written by Cory 'cbeck' Kolbeck.  Its source and license" +
-			" information can be found at https://github.com/ckolbeck/mc-bot"}
+		" information can be found at https://github.com/ckolbeck/mc-bot"}
 }
 
 var versionRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] Starting (minecraft server version .*)`)
+
 func startCmd(args []string, timeout *bool) []string {
-	if len(args) != 0{
+	if len(args) != 0 {
 		return []string{"Usage: " + commandHelpMap["start"]}
 	}
 
 	if err := server.Start(); err != nil {
-		return []string{err.String()}
+		return []string{err.Error()}
 	}
 
 	for line := range commandResponse {
@@ -468,28 +465,28 @@ func startCmd(args []string, timeout *bool) []string {
 
 func stateCmd(args []string, timeout *bool) (reply []string) {
 	var lines []string
-	if len(args) != 0{
+	if len(args) != 0 {
 		return []string{"Usage: " + commandHelpMap["state"]}
 	}
 
 	//GetPID will return an error if server is not running
 	pid, err := server.GetPID()
 	if err != nil {
-		return []string{err.String()}
+		return []string{err.Error()}
 	}
 
 	switch config.HostOS {
 	case "linux":
 		raw, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
 		if err != nil {
-			reply = []string{"Error while assessing status: " + err.String()}
-		}		
+			reply = []string{"Error while assessing status: " + err.Error()}
+		}
 		lines = strings.Split(string(raw), "\n")
 	case "windows":
 		cmd := exec.Command("tasklist", "/FI", fmt.Sprintf("pid eq %d", pid), "/FO", "LIST")
 		raw, err := cmd.Output()
 		if err != nil {
-			reply = []string{"Error while assessing status: " + err.String()}
+			reply = []string{"Error while assessing status: " + err.Error()}
 		}
 		lines = strings.Split(string(raw), "\r\n")
 	}
@@ -513,16 +510,16 @@ func stateCmd(args []string, timeout *bool) (reply []string) {
 	reply = append(reply, fmt.Sprintf("Errors: %d", serverErrors))
 	reply = append(reply, fmt.Sprintf("Severe Errors: %d", severeServerErrors))
 	reply = append(reply, serverVersion)
-	
+
 	if mapgenRunning {
-		reply = append(reply, "MapGen currently running: " + lastMapgenOutput)
+		reply = append(reply, "MapGen currently running: "+lastMapgenOutput)
 	} else if lastMapgenRun != nil {
-		reply = append(reply, "MapGen last run  " + lastMapgenRun.Format("Mon Jan _2 15:04"))
+		reply = append(reply, "MapGen last run  "+lastMapgenRun.Format("Mon Jan _2 15:04"))
 	} else {
 		reply = append(reply, "No MapGen run since last bot restart.")
 	}
 
-	return 
+	return
 }
 
 func stopCmd(args []string, timeout *bool) []string {
@@ -535,9 +532,9 @@ func stopCmd(args []string, timeout *bool) []string {
 
 	if len(args) == 0 {
 		delay = DefaultStopDelay
-		msg = fmt.Sprintf("Stop command issued, going down in %d seconds.", delay / 1e9) 
+		msg = fmt.Sprintf("Stop command issued, going down in %d seconds.", delay/1e9)
 	} else {
-		if d, err := strconv.Atoi64(args[0]); err == nil {
+		if d, err := strconv.ParseInt(args[0], 10, 64); err == nil {
 			delay = d * 1e9
 			args = args[1:]
 		} else {
@@ -546,17 +543,17 @@ func stopCmd(args []string, timeout *bool) []string {
 
 		if len(args) > 0 {
 			msg = strings.Join(args, " ")
-		} else { 
-			msg = fmt.Sprintf("Stop command issued, going down in %d seconds.", delay / 1e9) 
+		} else {
+			msg = fmt.Sprintf("Stop command issued, going down in %d seconds.", delay/1e9)
 		}
-	} 
+	}
 
 	serverErrors = 0
 	severeServerErrors = 0
 	serverVersion = ""
 
 	if err := server.Stop(delay, msg); err != nil {
-		return []string{err.String()}
+		return []string{err.Error()}
 	}
 
 	return []string{"Server stopped."}
@@ -564,6 +561,7 @@ func stopCmd(args []string, timeout *bool) []string {
 
 var tpRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (CONSOLE:)? (Teleporting.*|` +
 	`Can't find user.*|.*are in different dimensions\. No tp\.)`)
+
 func tpCmd(args []string, timeout *bool) []string {
 	if len(args) != 2 {
 		return []string{"Usage: " + commandHelpMap["tp"]}
@@ -592,9 +590,9 @@ func versionCmd(args []string, timeout *bool) []string {
 	return []string{"Server not running or version unknown."}
 }
 
-var whitelistRegexAddRemove *regexp.Regexp = 
-	regexp.MustCompile(`\[INFO\] CONSOLE: (Removed .+ from the whitelist|Added .+ to the whitelist)`)
+var whitelistRegexAddRemove *regexp.Regexp = regexp.MustCompile(`\[INFO\] CONSOLE: (Removed .+ from the whitelist|Added .+ to the whitelist)`)
 var whitelistListRegex *regexp.Regexp = regexp.MustCompile(`There are \d+ (out of \d+ seen) whitelisted players:`)
+
 func whitelistCmd(args []string, timeout *bool) (reply []string) {
 	if len(args) == 0 {
 		return []string{"Usage: " + commandHelpMap["whitelist"]}
@@ -603,7 +601,7 @@ func whitelistCmd(args []string, timeout *bool) (reply []string) {
 	if !server.IsRunning() {
 		return []string{"Server not currently running."}
 	}
-	
+
 	switch args[0] {
 	case "add", "remove":
 		if len(args) < 2 {
@@ -617,7 +615,7 @@ func whitelistCmd(args []string, timeout *bool) (reply []string) {
 					reply = append(reply, match[1])
 					break
 				}
-				 
+
 			}
 		}
 	case "list":
@@ -625,9 +623,9 @@ func whitelistCmd(args []string, timeout *bool) (reply []string) {
 		for line := range commandResponse {
 			if match := whitelistListRegex.FindStringSubmatch(line); match != nil {
 				players := <-commandResponse //The next line should have the actual list
-				return append(match[1:], strings.SplitAfterN(players, "[INFO] , " 2)[1:])
+				return append(match[1:], strings.SplitAfterN(players, "[INFO] , ", 1)[1:])
 
-			}	
+			}
 		}
 	default:
 		return []string{"Usage: " + commandHelpMap["whitelist"]}
@@ -635,4 +633,3 @@ func whitelistCmd(args []string, timeout *bool) (reply []string) {
 
 	return
 }
-
