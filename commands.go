@@ -8,7 +8,6 @@ import (
 	"net"
 	"os/exec"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -22,8 +21,8 @@ type command struct {
 }
 
 const (
-	DefaultStopDelay = 5e9
-	CommandTimeout   = 60e9
+	DefaultStopDelay = 5
+	CommandTimeout   = 60
 	notImplemented   = "This command is not yet implemented"
 )
 
@@ -144,7 +143,7 @@ func commandDispatch() {
 			}()
 
 			select {
-			case <-time.After(CommandTimeout):
+			case <-time.After(CommandTimeout * time.Second):
 				timeout = true
 				<-returned
 				reply = []string{"Command timed out."}
@@ -241,15 +240,14 @@ func banCmd(args []string, timeout *bool) []string {
 	}
 
 	if len(args) == 2 {
-		dur, err := strconv.ParseInt(args[1], 10, 64)
+		dur, err := time.ParseDuration(args[1])
 		if err != nil || dur <= 0 {
-			return []string{"Could not parse " + args[1] + " as a positive integer."}
+			return []string{"Could not parse " + args[1] + " as a valid duration. Missing units?"}
 		}
 		isTemp = fmt.Sprintf(" for %d minute(s).", dur)
 
 		go func() {
-			//dur will be in seconds, After() expects nanoseconds
-			<-(time.After(dur * 60e9))
+			<-(time.After(dur * time.Second))
 			server.In <- "pardon" + ext + " " + args[0]
 		}()
 	}
@@ -294,12 +292,12 @@ func kickCmd(args []string, timeout *bool) []string {
 	}
 
 	var reply string
-	var dur int64 = -1
+	var dur time.Duration
 	var err error
 
 	if len(args) == 2 {
-		if dur, err = strconv.ParseInt(args[1], 10, 64); err != nil || dur <= 0 {
-			return []string{"Couldn't parse " + args[1] + " as a positive integer."}
+		if dur, err = time.ParseDuration(args[1]); err != nil || dur <= 0 {
+			return []string{"Could not parse " + args[1] + " as a valid duration. Missing units?"}
 		}
 	}
 
@@ -319,7 +317,7 @@ func kickCmd(args []string, timeout *bool) []string {
 	if dur != -1 {
 		reply = fmt.Sprintf("%s was kickbanned and will be pardoned in %d minute(s).", args[0], dur)
 		go func() {
-			<-(time.After(dur * 60e9))
+			<-(time.After(dur))
 			server.In <- "pardon " + args[0]
 		}()
 	}
@@ -339,7 +337,7 @@ func listCmd(args []string, timeout *bool) []string {
 	for line := range commandResponse {
 		if match := listRegex.FindStringSubmatch(line); match != nil {
 			players := <-commandResponse //The next line should have the actual list
-			return append(match[1:], strings.SplitAfterN(players, "[INFO] ", 2)[1:])
+			return append(match[1:], strings.SplitAfterN(players, "[INFO] ", 2)[1:]...)
 		}
 	}
 
@@ -416,12 +414,12 @@ func mapgenCmd(args []string, timeout *bool) []string {
 			})
 		} else {
 
-			dur := time.Now().Sub(lastMapgenRun.Unix())
+			dur := time.Since(lastMapgenRun)
 
 			bot.Send(&irc.Message{
 				Command:  "PRIVMSG",
 				Args:     []string{config.IrcChan},
-				Trailing: fmt.Sprintf("MapGen Complete in %02d:%02d:%02d", dur/3600, (dur%3600)/60, dur%60),
+				Trailing: fmt.Sprintf("MapGen Complete in %v", dur),
 			})
 		}
 
@@ -513,17 +511,17 @@ func stateCmd(args []string, timeout *bool) (reply []string) {
 
 	if mapgenRunning {
 		reply = append(reply, "MapGen currently running: "+lastMapgenOutput)
-	} else if lastMapgenRun != nil {
-		reply = append(reply, "MapGen last run  "+lastMapgenRun.Format("Mon Jan _2 15:04"))
+	} else if lastMapgenRun.IsZero() {
+		reply = append(reply, "No MapGen run since last bot restart.")		
 	} else {
-		reply = append(reply, "No MapGen run since last bot restart.")
+		reply = append(reply, "MapGen last run  "+lastMapgenRun.Format("Mon Jan _2 15:04"))
 	}
 
 	return
 }
 
 func stopCmd(args []string, timeout *bool) []string {
-	var delay int64
+	delay := DefaultStopDelay * time.Second
 	var msg string
 
 	if !server.IsRunning() {
@@ -531,14 +529,13 @@ func stopCmd(args []string, timeout *bool) []string {
 	}
 
 	if len(args) == 0 {
-		delay = DefaultStopDelay
-		msg = fmt.Sprintf("Stop command issued, going down in %d seconds.", delay/1e9)
+		msg = fmt.Sprintf("Stop command issued, going down in %v.", delay)
 	} else {
-		if d, err := strconv.ParseInt(args[0], 10, 64); err == nil {
-			delay = d * 1e9
+		if d, err := time.ParseDuration(args[0]); err == nil {
 			args = args[1:]
+			delay = d
 		} else {
-			delay = DefaultStopDelay
+
 		}
 
 		if len(args) > 0 {
@@ -590,7 +587,7 @@ func versionCmd(args []string, timeout *bool) []string {
 	return []string{"Server not running or version unknown."}
 }
 
-var whitelistRegexAddRemove *regexp.Regexp = regexp.MustCompile(`\[INFO\] CONSOLE: (Removed .+ from the whitelist|Added .+ to the whitelist)`)
+var whitelistAddRemoveRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] CONSOLE: (Removed .+ from the whitelist|Added .+ to the whitelist)`)
 var whitelistListRegex *regexp.Regexp = regexp.MustCompile(`There are \d+ (out of \d+ seen) whitelisted players:`)
 
 func whitelistCmd(args []string, timeout *bool) (reply []string) {
@@ -623,7 +620,7 @@ func whitelistCmd(args []string, timeout *bool) (reply []string) {
 		for line := range commandResponse {
 			if match := whitelistListRegex.FindStringSubmatch(line); match != nil {
 				players := <-commandResponse //The next line should have the actual list
-				return append(match[1:], strings.SplitAfterN(players, "[INFO] , ", 1)[1:])
+				return append(match[1:], strings.SplitAfterN(players, "[INFO] , ", 1)[1:]...)
 
 			}
 		}

@@ -30,18 +30,20 @@ func init() {
 	sanitizeRegex = regexp.MustCompile("[\n\r]")
 	commands = make(chan *command, 1024)
 	commandResponse = make(chan string, 2048)
+	dieSignal := make(chan os.Signal)
+	reloadSignal := make(chan os.Signal)
+	signal.Notify(dieSignal, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(reloadSignal, syscall.SIGHUP)
 	go func() {
-		for sig := range signal.Incoming {
-			usig, _ := sig.(os.UnixSignal)
-			fmt.Fprintln(os.Stderr, "Recieved signal: "+sig.String())
-			switch usig {
-			case syscall.SIGINT, syscall.SIGTERM:
+		for {
+			select {
+			case <-dieSignal:
 				server.Destroy()
 				os.Exit(1)
-			case syscall.SIGHUP:
+			case <-reloadSignal:
 				err := config.Reparse()
 				if err != nil {
-					fmt.Fprintln(os.Stderr, "Config reparse failed: "+err.String())
+					fmt.Fprintf(os.Stderr, "Config reparse failed: %s\n", err)
 				}
 			}
 		}
