@@ -556,8 +556,8 @@ func stopCmd(args []string, timeout *bool) []string {
 	return []string{"Server stopped."}
 }
 
-var tpRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (CONSOLE:)? (Teleporting.*|` +
-	`Can't find user.*|.*are in different dimensions\. No tp\.)`)
+var tpRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (Teleported.*|` +
+	`That player cannot be found.*)`)
 
 func tpCmd(args []string, timeout *bool) []string {
 	if len(args) != 2 {
@@ -572,7 +572,7 @@ func tpCmd(args []string, timeout *bool) []string {
 
 	for line := range commandResponse {
 		if match := tpRegex.FindStringSubmatch(line); match != nil {
-			return []string{match[2]}
+			return []string{match[1]}
 		}
 	}
 
@@ -587,8 +587,8 @@ func versionCmd(args []string, timeout *bool) []string {
 	return []string{"Server not running or version unknown."}
 }
 
-var whitelistAddRemoveRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] CONSOLE: (Removed .+ from the whitelist|Added .+ to the whitelist)`)
-var whitelistListRegex *regexp.Regexp = regexp.MustCompile(`There are \d+ (out of \d+ seen) whitelisted players:`)
+var whitelistAddRemoveRegex *regexp.Regexp = regexp.MustCompile(`\[INFO\] (Removed \w+ from the whitelist|Added \w+ to the whitelist)`)
+var whitelistListRegex *regexp.Regexp = regexp.MustCompile(`(There are \d+ \(out of \d+ seen\) whitelisted players:)`)
 
 func whitelistCmd(args []string, timeout *bool) (reply []string) {
 	if len(args) == 0 {
