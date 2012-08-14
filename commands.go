@@ -620,7 +620,7 @@ func whitelistCmd(args []string, timeout *bool) (reply []string) {
 		for line := range commandResponse {
 			if match := whitelistListRegex.FindStringSubmatch(line); match != nil {
 				players := <-commandResponse //The next line should have the actual list
-				return append(match[1:], strings.SplitAfterN(players, "[INFO] , ", 1)[1:]...)
+				return append(match[1:], strings.SplitAfterN(players, "[INFO] , ", 2)[1:]...)
 
 			}
 		}
