@@ -1,1 +1,1 @@
-To build, first install go-ircbot from http://github.com/ckolbeck/go-ircbot, then run `make mcserver && make`.
+To build first install ircbot and mcserver from http://github.com/ckolbeck manually or by running `make prereq`, then `make`.
